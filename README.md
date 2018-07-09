@@ -2,7 +2,7 @@
 ros  automatic charging package
 
 ## 1.Hardware Requirements
-Need BlueWhale automatic charging kit,you can buy it from www.bwbot.org.Current only support diffDriver mobile base.
+Need BlueWhale automatic charging kit,you can buy it from www.bwbot.org  Current only support diffDriver mobile base.
 
 ## 2.Subscribed Topics      
 bw_auto_dock/EnableCharge (std_msgs/Bool)
