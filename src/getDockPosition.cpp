@@ -1,0 +1,134 @@
+
+#include "bw_auto_dock/getDockPosition.h"
+#include <boost/filesystem.hpp>
+#include <stdio.h>
+#include <iomanip>
+#include <fstream>
+
+namespace bw_auto_dock
+{
+  CaculateDockPosition::CaculateDockPosition(double grid_length,std::string frame_id,std::string dock_station_filename,DockControler * dock_controler,StatusPublisher* bw_status)
+  {
+    mdock_controler_ = dock_controler;
+    mbw_status_ = bw_status;
+    mdock_station_filename_ = dock_station_filename;
+    mlocal_grid_ = new LocalGrid(0.1,grid_length/2.0/0.1,frame_id);
+    station_distance_ = 0.8;
+  }
+  bool CaculateDockPosition::getDockPosition(float (&station_pose1)[2],float (&station_pose2)[2])
+  {
+    //获取充电桩参考点
+    boost::mutex::scoped_lock lock(mMutex_);
+    std::string dbfile_path = std::string(std::getenv("HOME"))+ std::string("/slamdb") +std::string("/")+mdock_station_filename_;
+    if ( !boost::filesystem::exists( dbfile_path.c_str()) )
+    {
+      return false;
+    }
+    else
+    {
+      std::ifstream dock_station_file(dbfile_path);
+      if(dock_station_file.is_open())
+      {
+        dock_station_file>>station_pose1[0];
+        dock_station_file>>station_pose1[1];
+        dock_station_file>>station_pose2[0];
+        dock_station_file>>station_pose2[1];
+      }
+      else
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void CaculateDockPosition::run()
+  {
+    ros::NodeHandle nodeHandler;
+    ros::Subscriber sub1 = nodeHandler.subscribe("/bw_auto_dock/dockposition_save", 1, &CaculateDockPosition::updateMapsaveFlag,this);
+    ros::Rate r(10);
+    int num=0;
+    bool dock_postion_update_=false;
+    while (ros::ok())
+    {
+        num++;
+        if(num%100==0)
+        {
+          mlocal_grid_->runPub();
+        }
+        if(num%100==0 && dock_postion_update_)
+        {
+          //10秒自动保存一次
+          dock_postion_update_ = false;
+          this->saveDockPositon();
+          float station_pose1[2],station_pose2[2];
+        }
+        DOCK_POSITION  sensor_value = mbw_status_->get_dock_position();
+        float ir_pose[3];
+
+        if( mdock_controler_->getIRPose(ir_pose) && sensor_value!=DOCK_POSITION::not_found)
+        {
+          if(!mlocal_grid_->get_ready_flag())
+          {
+            float center[3];
+            center[0] = ir_pose[0];
+            center[1] = ir_pose[1];
+            center[2] = ir_pose[2];
+            mlocal_grid_->setOrigin(center);
+          }
+          mlocal_grid_->update_clear(ir_pose);
+          mlocal_grid_->update_sensor(sensor_value,ir_pose);
+          if(mbw_status_->sensor_status.power>9.0)
+          {
+            //触发充电桩
+            if(mlocal_grid_->set_dock_position(ir_pose)) dock_postion_update_=true;
+            //ROS_INFO("dock_realposition_set %d %f %f %f",num,ir_pose[0],ir_pose[1],ir_pose[2]);
+          }
+        }
+
+        ros::spinOnce();
+        r.sleep();
+    }
+  }
+
+  void CaculateDockPosition::saveDockPositon()
+  {
+     boost::mutex::scoped_lock lock(mMutex_);
+     std::string dbfile_rootpath = std::string(std::getenv("HOME"))+ std::string("/slamdb") +std::string("/");
+     float dock_pose[3],station_pose1[2],station_pose2[2];
+     if(mlocal_grid_->get_dock_position(dock_pose))
+     {
+       ROS_INFO("dock_position_saved  %f %f %f",dock_pose[0],dock_pose[1],dock_pose[2]);
+       //(station_distance_,station_distance_) (station_distance_,-station_distance_)
+       station_pose1[0] = dock_pose[0] + station_distance_*cos(dock_pose[2]) -  0.7*station_distance_*sin(dock_pose[2]);
+       station_pose1[1] = dock_pose[1] + station_distance_*sin(dock_pose[2]) +  0.7*station_distance_*cos(dock_pose[2]);
+
+       station_pose2[0] = dock_pose[0] + station_distance_*cos(dock_pose[2]) +  0.7*station_distance_*sin(dock_pose[2]);
+       station_pose2[1] = dock_pose[1] + station_distance_*sin(dock_pose[2]) -  0.7*station_distance_*cos(dock_pose[2]);
+
+
+       if ( !boost::filesystem::exists( dbfile_rootpath.c_str()) )
+       {
+         boost::filesystem::create_directories(dbfile_rootpath.c_str());
+       }
+       std::ofstream dock_station_file;
+       dock_station_file.open(dbfile_rootpath+mdock_station_filename_);
+       dock_station_file<< station_pose1[0] << " "<< station_pose1[1]<< std::endl << station_pose2[0] << " "<< station_pose2[1] << std::endl;
+       dock_station_file<< dock_pose[0] << " "<< dock_pose[1] << " " << dock_pose[2] << std::endl;
+       dock_station_file.close();
+     }
+  }
+
+  void CaculateDockPosition::updateMapsaveFlag(const std_msgs::Bool& currentFlag)
+  {
+     if(currentFlag.data)
+     {
+       float ir_pose[3];
+       if( mdock_controler_->getIRPose(ir_pose) )
+       {
+         mlocal_grid_->set_dock_position(ir_pose);
+       }
+       this->saveDockPositon();
+     }
+  }
+}
