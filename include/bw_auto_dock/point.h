@@ -1,143 +1,188 @@
-#ifndef _POINT_H_
-#define _POINT_H_
+/******************************************************************************
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2018 Bluewhale Robot
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * Author: Xie fusheng, Randoms
+ *******************************************************************************/
+
+#ifndef __POINT_H__
+#define __POINT_H__
 #include <assert.h>
 #include <math.h>
 #include <iostream>
 #include "bw_auto_dock/gvalues.h"
 
-namespace bw_auto_dock {
-
+namespace bw_auto_dock
+{
 template <class T>
-struct point{
-	inline point():x(0),y(0) {}
-	inline point(T _x, T _y):x(_x),y(_y){}
-	T x, y;
+struct point
+{
+    inline point() : x(0), y(0)
+    {
+    }
+    inline point(T _x, T _y) : x(_x), y(_y)
+    {
+    }
+    T x, y;
 };
 
 template <class T>
-inline point<T> operator+(const point<T>& p1, const point<T>& p2){
-	return point<T>(p1.x+p2.x, p1.y+p2.y);
+inline point<T> operator+(const point<T>& p1, const point<T>& p2)
+{
+    return point<T>(p1.x + p2.x, p1.y + p2.y);
 }
 
 template <class T>
-inline point<T> operator - (const point<T> & p1, const point<T> & p2){
-	return point<T>(p1.x-p2.x, p1.y-p2.y);
+inline point<T> operator-(const point<T>& p1, const point<T>& p2)
+{
+    return point<T>(p1.x - p2.x, p1.y - p2.y);
 }
 
 template <class T>
-inline point<T> operator * (const point<T>& p, const T& v){
-	return point<T>(p.x*v, p.y*v);
+inline point<T> operator*(const point<T>& p, const T& v)
+{
+    return point<T>(p.x * v, p.y * v);
 }
 
 template <class T>
-inline point<T> operator * (const T& v, const point<T>& p){
-	return point<T>(p.x*v, p.y*v);
+inline point<T> operator*(const T& v, const point<T>& p)
+{
+    return point<T>(p.x * v, p.y * v);
 }
 
 template <class T>
-inline T operator * (const point<T>& p1, const point<T>& p2){
-	return p1.x*p2.x+p1.y*p2.y;
+inline T operator*(const point<T>& p1, const point<T>& p2)
+{
+    return p1.x * p2.x + p1.y * p2.y;
 }
-
 
 template <class T, class A>
-struct orientedpoint: public point<T>{
-  inline orientedpoint() : point<T>(0,0), theta(0) {};
-	inline orientedpoint(const point<T>& p);
-	inline orientedpoint(T x, T y, A _theta): point<T>(x,y), theta(_theta){}
-        inline void normalize();
-	inline orientedpoint<T,A> rotate(A alpha){
-		T s=sin(alpha), c=cos(alpha);
-		A a=alpha+theta;
-		a=atan2(sin(a),cos(a));
-		return orientedpoint(
-			c*this->x-s*this->y,
-			s*this->x+c*this->y,
-			a);
-	}
-	A theta;
+struct orientedpoint : public point<T>
+{
+    inline orientedpoint() : point<T>(0, 0), theta(0){};
+    inline orientedpoint(const point<T>& p);
+    inline orientedpoint(T x, T y, A _theta) : point<T>(x, y), theta(_theta)
+    {
+    }
+    inline void normalize();
+    inline orientedpoint<T, A> rotate(A alpha)
+    {
+        T s = sin(alpha), c = cos(alpha);
+        A a = alpha + theta;
+        a = atan2(sin(a), cos(a));
+        return orientedpoint(c * this->x - s * this->y, s * this->x + c * this->y, a);
+    }
+    A theta;
 };
 
-
 template <class T, class A>
-void orientedpoint<T,A>::normalize() {
-  if (theta >= -M_PI && theta < M_PI)
-    return;
+void orientedpoint<T, A>::normalize()
+{
+    if (theta >= -M_PI && theta < M_PI)
+        return;
 
-  int multiplier = (int)(theta / (2*M_PI));
-  theta = theta - multiplier*2*M_PI;
-  if (theta >= M_PI)
-    theta -= 2*M_PI;
-  if (theta < -M_PI)
-    theta += 2*M_PI;
-}
-
-
-template <class T, class A>
-orientedpoint<T,A>::orientedpoint(const point<T>& p){
-	this->x=p.x;
-	this->y=p.y;
-	this->theta=0.;
-}
-
-
-template <class T, class A>
-orientedpoint<T,A> operator+(const orientedpoint<T,A>& p1, const orientedpoint<T,A>& p2){
-	return orientedpoint<T,A>(p1.x+p2.x, p1.y+p2.y, p1.theta+p2.theta);
+    int multiplier = (int)(theta / (2 * M_PI));
+    theta = theta - multiplier * 2 * M_PI;
+    if (theta >= M_PI)
+        theta -= 2 * M_PI;
+    if (theta < -M_PI)
+        theta += 2 * M_PI;
 }
 
 template <class T, class A>
-orientedpoint<T,A> operator - (const orientedpoint<T,A> & p1, const orientedpoint<T,A> & p2){
-	return orientedpoint<T,A>(p1.x-p2.x, p1.y-p2.y, p1.theta-p2.theta);
+orientedpoint<T, A>::orientedpoint(const point<T>& p)
+{
+    this->x = p.x;
+    this->y = p.y;
+    this->theta = 0.;
 }
 
 template <class T, class A>
-orientedpoint<T,A> operator * (const orientedpoint<T,A>& p, const T& v){
-	return orientedpoint<T,A>(p.x*v, p.y*v, p.theta*v);
+orientedpoint<T, A> operator+(const orientedpoint<T, A>& p1, const orientedpoint<T, A>& p2)
+{
+    return orientedpoint<T, A>(p1.x + p2.x, p1.y + p2.y, p1.theta + p2.theta);
 }
 
 template <class T, class A>
-orientedpoint<T,A> operator * (const T& v, const orientedpoint<T,A>& p){
-	return orientedpoint<T,A>(p.x*v, p.y*v, p.theta*v);
+orientedpoint<T, A> operator-(const orientedpoint<T, A>& p1, const orientedpoint<T, A>& p2)
+{
+    return orientedpoint<T, A>(p1.x - p2.x, p1.y - p2.y, p1.theta - p2.theta);
 }
 
 template <class T, class A>
-orientedpoint<T,A> absoluteDifference(const orientedpoint<T,A>& p1,const orientedpoint<T,A>& p2){
-	orientedpoint<T,A> delta=p1-p2;
-	delta.theta=atan2(sin(delta.theta), cos(delta.theta));
-	double s=sin(p2.theta), c=cos(p2.theta);
-	return orientedpoint<T,A>(c*delta.x+s*delta.y,
-	                         -s*delta.x+c*delta.y, delta.theta);
+orientedpoint<T, A> operator*(const orientedpoint<T, A>& p, const T& v)
+{
+    return orientedpoint<T, A>(p.x * v, p.y * v, p.theta * v);
 }
 
 template <class T, class A>
-orientedpoint<T,A> absoluteSum(const orientedpoint<T,A>& p1,const orientedpoint<T,A>& p2){
-	double s=sin(p1.theta), c=cos(p1.theta);
-	return orientedpoint<T,A>(c*p2.x-s*p2.y,
-				  s*p2.x+c*p2.y, p2.theta) + p1;
+orientedpoint<T, A> operator*(const T& v, const orientedpoint<T, A>& p)
+{
+    return orientedpoint<T, A>(p.x * v, p.y * v, p.theta * v);
 }
 
 template <class T, class A>
-point<T> absoluteSum(const orientedpoint<T,A>& p1,const point<T>& p2){
-	double s=sin(p1.theta), c=cos(p1.theta);
-	return point<T>(c*p2.x-s*p2.y, s*p2.x+c*p2.y) + (point<T>) p1;
+orientedpoint<T, A> absoluteDifference(const orientedpoint<T, A>& p1, const orientedpoint<T, A>& p2)
+{
+    orientedpoint<T, A> delta = p1 - p2;
+    delta.theta = atan2(sin(delta.theta), cos(delta.theta));
+    double s = sin(p2.theta), c = cos(p2.theta);
+    return orientedpoint<T, A>(c * delta.x + s * delta.y, -s * delta.x + c * delta.y, delta.theta);
+}
+
+template <class T, class A>
+orientedpoint<T, A> absoluteSum(const orientedpoint<T, A>& p1, const orientedpoint<T, A>& p2)
+{
+    double s = sin(p1.theta), c = cos(p1.theta);
+    return orientedpoint<T, A>(c * p2.x - s * p2.y, s * p2.x + c * p2.y, p2.theta) + p1;
+}
+
+template <class T, class A>
+point<T> absoluteSum(const orientedpoint<T, A>& p1, const point<T>& p2)
+{
+    double s = sin(p1.theta), c = cos(p1.theta);
+    return point<T>(c * p2.x - s * p2.y, s * p2.x + c * p2.y) + (point<T>)p1;
 }
 
 template <class T>
-struct pointcomparator{
-	bool operator ()(const point<T>& a, const point<T>& b) const {
-		return a.x<b.x || (a.x==b.x && a.y<b.y);
-	}
+struct pointcomparator
+{
+    bool operator()(const point<T>& a, const point<T>& b) const
+    {
+        return a.x < b.x || (a.x == b.x && a.y < b.y);
+    }
 };
 
 template <class T>
-struct pointradialcomparator{
-	point<T> origin;
-	bool operator ()(const point<T>& a, const point<T>& b) const {
-		point<T> delta1=a-origin;
-		point<T> delta2=b-origin;
-		return (atan2(delta1.y,delta1.x)<atan2(delta2.y,delta2.x));
-	}
+struct pointradialcomparator
+{
+    point<T> origin;
+    bool operator()(const point<T>& a, const point<T>& b) const
+    {
+        point<T> delta1 = a - origin;
+        point<T> delta2 = b - origin;
+        return (atan2(delta1.y, delta1.x) < atan2(delta2.y, delta2.x));
+    }
 };
 
 // template <class T>
@@ -157,49 +202,51 @@ struct pointradialcomparator{
 // }
 
 template <class T, class F>
-inline point<T> interpolate(const point<T>& p1,  const F& t1, const point<T>& p2, const F& t2, const F& t3){
-	F gain=(t3-t1)/(t2-t1);
-	point<T> p=p1+(p2-p1)*gain;
-	return p;
+inline point<T> interpolate(const point<T>& p1, const F& t1, const point<T>& p2, const F& t2, const F& t3)
+{
+    F gain = (t3 - t1) / (t2 - t1);
+    point<T> p = p1 + (p2 - p1) * gain;
+    return p;
 }
 
 template <class T, class A, class F>
-inline orientedpoint<T,A>
-interpolate(const orientedpoint<T,A>& p1,  const F& t1, const orientedpoint<T,A>& p2, const F& t2, const F& t3){
-	F gain=(t3-t1)/(t2-t1);
-	orientedpoint<T,A> p;
-	p.x=p1.x+(p2.x-p1.x)*gain;
-	p.y=p1.y+(p2.y-p1.y)*gain;
-	double  s=sin(p1.theta)+sin(p2.theta)*gain,
-		c=cos(p1.theta)+cos(p2.theta)*gain;
-	p.theta=atan2(s,c);
-	return p;
+inline orientedpoint<T, A> interpolate(const orientedpoint<T, A>& p1, const F& t1, const orientedpoint<T, A>& p2,
+                                       const F& t2, const F& t3)
+{
+    F gain = (t3 - t1) / (t2 - t1);
+    orientedpoint<T, A> p;
+    p.x = p1.x + (p2.x - p1.x) * gain;
+    p.y = p1.y + (p2.y - p1.y) * gain;
+    double s = sin(p1.theta) + sin(p2.theta) * gain, c = cos(p1.theta) + cos(p2.theta) * gain;
+    p.theta = atan2(s, c);
+    return p;
 }
-
 
 template <class T>
-inline double euclidianDist(const point<T>& p1, const point<T>& p2){
-  return hypot(p1.x-p2.x, p1.y-p2.y);
+inline double euclidianDist(const point<T>& p1, const point<T>& p2)
+{
+    return hypot(p1.x - p2.x, p1.y - p2.y);
 }
 template <class T, class A>
-inline double euclidianDist(const orientedpoint<T,A>& p1, const orientedpoint<T,A>& p2){
-  return hypot(p1.x-p2.x, p1.y-p2.y);
+inline double euclidianDist(const orientedpoint<T, A>& p1, const orientedpoint<T, A>& p2)
+{
+    return hypot(p1.x - p2.x, p1.y - p2.y);
 }
 template <class T, class A>
-inline double euclidianDist(const orientedpoint<T,A>& p1, const point<T>& p2){
-  return hypot(p1.x-p2.x, p1.y-p2.y);
+inline double euclidianDist(const orientedpoint<T, A>& p1, const point<T>& p2)
+{
+    return hypot(p1.x - p2.x, p1.y - p2.y);
 }
 template <class T, class A>
-inline double euclidianDist(const point<T>& p1, const orientedpoint<T,A>& p2 ){
-  return hypot(p1.x-p2.x, p1.y-p2.y);
+inline double euclidianDist(const point<T>& p1, const orientedpoint<T, A>& p2)
+{
+    return hypot(p1.x - p2.x, p1.y - p2.y);
 }
-
-
 
 typedef point<int> IntPoint;
 typedef point<double> Point;
 typedef orientedpoint<double, double> OrientedPoint;
 
-}; //end namespace
+};  // namespace bw_auto_dock
 
 #endif
