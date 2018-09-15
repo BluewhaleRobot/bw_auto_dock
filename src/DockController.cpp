@@ -1155,17 +1155,33 @@ void DockController::caculateStation3()
     float distance1, distance2;
     distance1 = (x - mstationPose1_[0]) * (x - mstationPose1_[0]) + (y - mstationPose1_[1]) * (y - mstationPose1_[1]);
     distance2 = (x - mstationPose2_[0]) * (x - mstationPose2_[0]) + (y - mstationPose2_[1]) * (y - mstationPose2_[1]);
-    if (distance1 < distance2)
+    if (distance1 > distance2  )
     {
-        //选2
-        mstationPose3_[0] = mstationPose2_[0];
-        mstationPose3_[1] = mstationPose2_[1];
+        if(distance2>(0.1*0.1))
+        {//选2
+           mstationPose3_[0] = mstationPose2_[0];
+           mstationPose3_[1] = mstationPose2_[1];
+        }
+        else
+        {
+	   //选1
+           mstationPose3_[0] = mstationPose1_[0];
+            mstationPose3_[1] = mstationPose1_[1];
+        }
     }
     else
     {
-        //选1
-        mstationPose3_[0] = mstationPose1_[0];
-        mstationPose3_[1] = mstationPose1_[1];
+        if(distance1<(0.1*0.1))
+        {//选2
+           mstationPose3_[0] = mstationPose2_[0];
+           mstationPose3_[1] = mstationPose2_[1];
+        }
+        else
+        {
+	   //选1
+           mstationPose3_[0] = mstationPose1_[0];
+            mstationPose3_[1] = mstationPose1_[1];
+        }
     }
     theta = atan2(mstationPose3_[1] - y, mstationPose3_[0] - x);
 

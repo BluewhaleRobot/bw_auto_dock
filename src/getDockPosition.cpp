@@ -127,14 +127,14 @@ void CaculateDockPosition::saveDockPositon()
         ROS_INFO("dock_position_saved  %f %f %f", dock_pose[0], dock_pose[1], dock_pose[2]);
         //(station_distance_,station_distance_) (station_distance_,-station_distance_)
         station_pose1[0] =
-            dock_pose[0] + station_distance_ * cos(dock_pose[2]) - 0.7 * station_distance_ * sin(dock_pose[2]);
+            dock_pose[0] + station_distance_ * cos(dock_pose[2]) - 0.5 * station_distance_ * sin(dock_pose[2]);
         station_pose1[1] =
-            dock_pose[1] + station_distance_ * sin(dock_pose[2]) + 0.7 * station_distance_ * cos(dock_pose[2]);
+            dock_pose[1] + station_distance_ * sin(dock_pose[2]) + 0.5 * station_distance_ * cos(dock_pose[2]);
 
         station_pose2[0] =
-            dock_pose[0] + station_distance_ * cos(dock_pose[2]) + 0.7 * station_distance_ * sin(dock_pose[2]);
+            dock_pose[0] + station_distance_ * cos(dock_pose[2]) + 0.5 * station_distance_ * sin(dock_pose[2]);
         station_pose2[1] =
-            dock_pose[1] + station_distance_ * sin(dock_pose[2]) - 0.7 * station_distance_ * cos(dock_pose[2]);
+            dock_pose[1] + station_distance_ * sin(dock_pose[2]) - 0.5 * station_distance_ * cos(dock_pose[2]);
 
         if (!boost::filesystem::exists(dbfile_rootpath.c_str()))
         {
