@@ -52,7 +52,10 @@ int main(int argc, char** argv)
     //获取小车机械参数
     double back_distance = 0;
     ros::param::param<double>("~back_distance", back_distance, 0.30);
-    bw_auto_dock::StatusPublisher bw_status;
+
+    double crash_distance;
+    ros::param::param<double>("~crash_distance", crash_distance, 70);
+    bw_auto_dock::StatusPublisher bw_status(crash_distance);
 
     //获取小车控制参数
     double max_linearspeed, max_rotspeed;
@@ -80,7 +83,7 @@ int main(int argc, char** argv)
 
         serial.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update, &bw_status, _1, _2));
 
-        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed, &bw_status, &serial);
+        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance, &bw_status, &serial);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
         bw_controler.setDockPid(kp, ki, kd);
 

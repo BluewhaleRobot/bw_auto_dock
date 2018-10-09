@@ -32,7 +32,7 @@
 
 namespace bw_auto_dock
 {
-StatusPublisher::StatusPublisher()
+StatusPublisher::StatusPublisher(double crash_distance)
 {
     mbUpdated = false;
     mdock_position_ = DOCK_POSITION::not_found;
@@ -41,6 +41,7 @@ StatusPublisher::StatusPublisher()
     sensor_status.left_sensor2 = 0;
     sensor_status.right_sensor2 = 0;
     sensor_status.right_sensor1 = 0;
+    crash_distance_ = crash_distance;
 
     mIRsensor1Pub = mNH.advertise<std_msgs::Int32>("bw_auto_dock/IRsensor1", 1, true);
     mIRsensor2Pub = mNH.advertise<std_msgs::Int32>("bw_auto_dock/IRsensor2", 1, true);
@@ -358,7 +359,7 @@ void StatusPublisher::Refresh()
         pub_data.data = (int)mcharge_status_;
         mChargestatusPub.publish(pub_data);
 
-        if (sensor_status.left_switch1 == 1 || sensor_status.right_switch1 == 1)
+        if (sensor_status.distance1 <= this->crash_distance_&&sensor_status.distance1>0.1)
         {
             pub_data.data = 1;
         }
@@ -366,6 +367,7 @@ void StatusPublisher::Refresh()
         {
             pub_data.data = 0;
         }
+        ROS_ERROR("distance: %f %f",sensor_status.distance1,sensor_status.distance2);
         mCrashPub.publish(pub_data);
 
         std_msgs::Float32 pub_data2;
