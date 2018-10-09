@@ -59,8 +59,8 @@ typedef struct
     unsigned int left_sensor2;
     unsigned int right_sensor2;
     unsigned int right_sensor1;
-    unsigned int left_switch1;
-    unsigned int right_switch1;
+    float distance1;
+    float distance2;
     unsigned int time_stamp;  //时间戳
 } UPLOAD_STATUS;
 
@@ -94,7 +94,7 @@ typedef enum class Ddock_position
 class StatusPublisher
 {
   public:
-    StatusPublisher();
+    StatusPublisher(double crash_distance);
     void Refresh();
     void Update(const char* data, unsigned int len);
     DOCK_POSITION get_dock_position();
@@ -121,6 +121,7 @@ class StatusPublisher
     boost::mutex mMutex_sensor;
     boost::mutex mMutex_charge;
     boost::mutex mMutex_dock;
+    double crash_distance_;
 };
 
 }  // namespace bw_auto_dock

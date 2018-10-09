@@ -29,12 +29,13 @@
 #include "bw_auto_dock/DockController.h"
 namespace bw_auto_dock
 {
-DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,
+DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,
                              StatusPublisher* bw_status, CallbackAsyncSerial* cmd_serial)
 {
     back_distance_ = back_distance;
     max_linearspeed_ = max_linearspeed;
     max_rotspeed_ = max_rotspeed;
+    crash_distance_ = crash_distance;
     bw_status_ = bw_status;
     mcmd_serial_ = cmd_serial;
     mcharge_status_ = CHARGE_STATUS::freed;
@@ -446,7 +447,7 @@ void DockController::dealing_status()
                 else
                 {
                     //触发了碰撞传感器
-                    if (bw_status_->sensor_status.left_switch1 == 1 || bw_status_->sensor_status.right_switch1 == 1)
+                    if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
                     {
                         //进入docking3
                         ROS_DEBUG("docking2.2");
@@ -490,7 +491,7 @@ void DockController::dealing_status()
             case CHARGE_STATUS_TEMP::docking3:
                 //往前移动，直到不会触发碰撞
 
-                if (bw_status_->sensor_status.left_switch1 == 0 && bw_status_->sensor_status.right_switch1 == 0)
+                if (bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
                 {
                     //进入docking2
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking2;
@@ -622,7 +623,7 @@ void DockController::dealing_status()
             break;
             case CHARGE_STATUS_TEMP::charging1:
                 //触发了碰撞传感器
-                if (bw_status_->sensor_status.left_switch1 == 1 || bw_status_->sensor_status.right_switch1 == 1)
+                if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
                 {
                     //进入docking3
                     ROS_DEBUG("docking2.2");
@@ -836,7 +837,7 @@ bool DockController::backToDock()
         return true;
 
     //如果侦测到已进入死角，停止
-    if (bw_status_->sensor_status.left_switch1 == 1 || bw_status_->sensor_status.right_switch1 == 1)
+    if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
         return true;
 
     if ((bw_status_->sensor_status.left_sensor2 == 0) && (bw_status_->sensor_status.right_sensor2 == 0))

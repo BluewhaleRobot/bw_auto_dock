@@ -58,7 +58,7 @@ typedef enum class Dcharge_status_temp
 class DockController
 {
   public:
-    DockController(double back_distance, double max_linearspeed, double max_rotspeed, StatusPublisher* bw_status,
+    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance, StatusPublisher* bw_status,
                   CallbackAsyncSerial* cmd_serial);
     void run();
     void dealing_status();
@@ -97,7 +97,8 @@ class DockController
     double back_distance_;
     double max_linearspeed_;
     double max_rotspeed_;
-
+    double crash_distance_;
+    
     StatusPublisher* bw_status_;
 
     ros::Publisher mCmdvelPub_;
