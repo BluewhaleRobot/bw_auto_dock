@@ -27,6 +27,9 @@ bw_auto_dock/Chargecurrent (std_msgs/Float32)
 bw_auto_dock/Chargepower (std_msgs/Float32)
     Charging voltage
 
+bw_auto_dock/Batterypower (std_msgs/Float32)
+    battery voltage
+
 bw_auto_dock/Chargestatus (std_msgs::Int32)
     Charging status
 

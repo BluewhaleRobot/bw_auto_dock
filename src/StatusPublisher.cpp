@@ -51,6 +51,7 @@ StatusPublisher::StatusPublisher(double crash_distance)
     mChargestatusPub = mNH.advertise<std_msgs::Int32>("bw_auto_dock/Chargestatus", 1, true);
 
     mPowerPub = mNH.advertise<std_msgs::Float32>("bw_auto_dock/Chargepower", 1, true);
+    mBatteryPowerPub = mNH.advertise<std_msgs::Float32>("bw_auto_dock/Batterypower", 1, true);
     mCurrentPub = mNH.advertise<std_msgs::Float32>("bw_auto_dock/Chargecurrent", 1, true);
     mCrashPub = mNH.advertise<std_msgs::Int32>("bw_auto_dock/Crashdetector", 1, true);
 }
@@ -115,9 +116,9 @@ void StatusPublisher::Update(const char data[], unsigned int len)
                     //当前包已经处理完成，开始处理
                     boost::mutex::scoped_lock lock(mMutex_sensor);
 
-                    if (new_packed_ok_len == 45)
+                    if (new_packed_ok_len == 50)
                     {
-                        for (j = 0; j < 9; j++)
+                        for (j = 0; j < 10; j++)
                         {
                             memcpy(&receive_byte[j], &cmd_string_buf[5 * j], 4);
                         }
@@ -125,7 +126,7 @@ void StatusPublisher::Update(const char data[], unsigned int len)
                     }
                     if (mbUpdated)
                     {
-                        for (j = 0; j < 8; j++)
+                        for (j = 0; j < 9; j++)
                         {
                             if (cmd_string_buf[5 * j + 4] != 32)
                             {
@@ -373,6 +374,9 @@ void StatusPublisher::Refresh()
         std_msgs::Float32 pub_data2;
         pub_data2.data = sensor_status.power;
         mPowerPub.publish(pub_data2);
+
+        pub_data2.data = sensor_status.battery;
+        mBatteryPowerPub.publish(pub_data2);
 
         pub_data2.data = sensor_status.current;
         mCurrentPub.publish(pub_data2);

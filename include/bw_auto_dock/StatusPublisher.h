@@ -54,6 +54,7 @@ namespace bw_auto_dock
 typedef struct
 {
     float power;    //电源电压【1.0 4.0】v
+    float battery;  //电池电压
     float current;  //充电电流
     unsigned int left_sensor1;
     unsigned int left_sensor2;
@@ -114,6 +115,7 @@ class StatusPublisher
     ros::Publisher mDockpostionPub;
     ros::Publisher mChargestatusPub;
     ros::Publisher mPowerPub;
+    ros::Publisher mBatteryPowerPub;
     ros::Publisher mCurrentPub;
     ros::Publisher mCrashPub;
     bool mbUpdated;
