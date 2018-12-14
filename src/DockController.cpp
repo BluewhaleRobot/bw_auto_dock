@@ -490,8 +490,7 @@ void DockController::dealing_status()
                 break;
             case CHARGE_STATUS_TEMP::docking3:
                 //往前移动，直到不会触发碰撞
-
-                if (bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
+                if ((bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)||bw_status_->sensor_status.power > 9.0)
                 {
                     //进入docking2
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking2;
@@ -622,23 +621,23 @@ void DockController::dealing_status()
             }
             break;
             case CHARGE_STATUS_TEMP::charging1:
-                //触发了碰撞传感器
-                if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
-                {
-                    //进入docking3
-                    ROS_DEBUG("docking2.2");
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking3;
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                    //停止移动
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
+                // //触发了碰撞传感器
+                // if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
+                // {
+                //     //进入docking3
+                //     ROS_DEBUG("docking2.2");
+                //     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking3;
+                //     usefull_num_ = 0;
+                //     unusefull_num_ = 0;
+                //     //停止移动
+                //     current_vel.linear.x = 0;
+                //     current_vel.linear.y = 0;
+                //     current_vel.linear.z = 0;
+                //     current_vel.angular.x = 0;
+                //     current_vel.angular.y = 0;
+                //     current_vel.angular.z = 0;
+                //     mCmdvelPub_.publish(current_vel);
+                // }
                 if (bw_status_->sensor_status.power < 9.0)
                 {
                     //没有侦测到电压，进入temp1

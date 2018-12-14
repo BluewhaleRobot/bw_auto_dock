@@ -368,7 +368,7 @@ void StatusPublisher::Refresh()
         {
             pub_data.data = 0;
         }
-        ROS_ERROR("distance: %f %f",sensor_status.distance1,sensor_status.distance2);
+        ROS_DEBUG("distance: %f %f",sensor_status.distance1,sensor_status.distance2);
         mCrashPub.publish(pub_data);
 
         std_msgs::Float32 pub_data2;

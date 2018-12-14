@@ -42,8 +42,7 @@ bool CaculateDockPosition::getDockPosition(float (&station_pose1)[2], float (&st
 {
     //获取充电桩参考点
     boost::mutex::scoped_lock lock(mMutex_);
-    std::string dbfile_path =
-        std::string(std::getenv("HOME")) + std::string("/slamdb") + std::string("/") + mdock_station_filename_;
+    std::string dbfile_path = mdock_station_filename_;//std::string(std::getenv("HOME")) + std::string("/slamdb") + std::string("/") + mdock_station_filename_;
     if (!boost::filesystem::exists(dbfile_path.c_str()))
     {
         return false;
@@ -120,7 +119,9 @@ void CaculateDockPosition::run()
 void CaculateDockPosition::saveDockPositon()
 {
     boost::mutex::scoped_lock lock(mMutex_);
-    std::string dbfile_rootpath = std::string(std::getenv("HOME")) + std::string("/slamdb") + std::string("/");
+    boost::filesystem::path p(mdock_station_filename_);
+    boost::filesystem::path dir = p.parent_path();
+    std::string dbfile_rootpath = p.parent_path().string();
     float dock_pose[3], station_pose1[2], station_pose2[2];
     if (mlocal_grid_->get_dock_position(dock_pose))
     {
@@ -141,7 +142,7 @@ void CaculateDockPosition::saveDockPositon()
             boost::filesystem::create_directories(dbfile_rootpath.c_str());
         }
         std::ofstream dock_station_file;
-        dock_station_file.open(dbfile_rootpath + mdock_station_filename_);
+        dock_station_file.open(mdock_station_filename_);
         dock_station_file << station_pose1[0] << " " << station_pose1[1] << std::endl
                           << station_pose2[0] << " " << station_pose2[1] << std::endl;
         dock_station_file << dock_pose[0] << " " << dock_pose[1] << " " << dock_pose[2] << std::endl;

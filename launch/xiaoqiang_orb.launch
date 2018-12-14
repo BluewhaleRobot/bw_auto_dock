@@ -16,9 +16,11 @@
     <param name="odom_frame_id" value="map"/>
     <!-- 里程计话题名字-->
     <remap from="/odom" to="/bWmono/Odom" />
-    <!-- 保存有充电桩位置的文件名,全路径在"～/slamdb/" -->
-    <param name="station_filename" value="dock_station.txt"/>
+    <!-- 保存有充电桩位置的文件名,需要是绝对路径，xiaoqiang改成自己的用户名 -->
+    <param name="station_filename" value="/home/xiaoqiang/slamdb/dock_station.txt"/>
     <param name="grid_length" value="4.0"/>
+    <!-- 碰撞触发距离，单位mm -->
+    <param name="crash_distance" value="120"/>
   </node>
   <!-- 设为０关闭底盘红外，设为１启动底盘红外-->
   <!-- <node pkg="nav_test" type="barDetectChanger.py" name="dock_barDetectChanger_node">
