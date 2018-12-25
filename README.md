@@ -57,10 +57,10 @@ bw_auto_dock/IRsensor4 (std_msgs::Int32)
   The distance from the charging location to the base_link location,base_link is generally located in the middle of the two drive wheels.
 
 ~max_linearspeed (double, default: 0.2)
-  Maximum line speed during automatic charging alignment.
+  Maximum linear speed during automatic charging alignment.
 
 ~max_rotspeed (double, default: 1.4)
-  Maximum line speed during automatic charging alignment.
+  Maximum angular speed during automatic charging alignment.
 
 ~back_dock_kp (double, default: 0.2)
   PID kp parameter during automatic charging alignment.
@@ -77,10 +77,13 @@ bw_auto_dock/IRsensor4 (std_msgs::Int32)
 ~odom_frame_id (string, default: odom)
   The frame name of odom topic
 
-~station_filename (string, default: dock_station.txt)
-  File name of the charging station location,the full path is "～/slamdb/"
+~station_filename (string, default: /home/xiaoqiang/slamdb/dock_station.txt)
+  File name of the charging station location,need full path
 
 ~grid_length (double, default: 4.0)
+
+~crash_distance (double, default: 120)
+  The minimum allowed distance between charger and station ,mm  length unit.
 
 ## 5.Usage:
 ### Download to xiaoqiang ros workspace
