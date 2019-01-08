@@ -98,11 +98,12 @@ class DockController
     double max_linearspeed_;
     double max_rotspeed_;
     double crash_distance_;
-    
+
     StatusPublisher* bw_status_;
 
     ros::Publisher mCmdvelPub_;
     ros::Publisher mbarDetectPub_;
+    ros::Publisher mlimitSpeedPub_;
 
     boost::mutex mMutex_charge;
     boost::mutex mMutex_pose;

@@ -353,6 +353,16 @@ void StatusPublisher::Refresh()
                 }
             }
         }
+        if (sensor_status.left_sensor1 == 3||sensor_status.left_sensor1 == 7)
+        {
+          //ROS_ERROR(" dock : %d, %d %d",(int)mdock_position_,sensor_status.left_sensor1,sensor_status.left_sensor2);
+          mdock_position_ = DOCK_POSITION::left_center;
+        }
+        if (sensor_status.right_sensor1 == 3||sensor_status.right_sensor1 == 7)
+        {
+          //ROS_ERROR(" dock : %d, %d %d",(int)mdock_position_,sensor_status.left_sensor1,sensor_status.left_sensor2);
+          mdock_position_ = DOCK_POSITION::right_center;
+        }
         //发布dock位置
         pub_data.data = (int)mdock_position_;
         mDockpostionPub.publish(pub_data);

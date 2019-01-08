@@ -67,6 +67,7 @@ void DockController::run()
     ros::NodeHandle nodeHandler;
     mCmdvelPub_ = nodeHandler.advertise<geometry_msgs::Twist>("/cmd_vel", 1, true);
     mbarDetectPub_ = nodeHandler.advertise<std_msgs::Bool>("/barDetectFlag", 1, true);
+    mlimitSpeedPub_ = nodeHandler.advertise<std_msgs::Bool>("/limitSpeedFlag", 1, true);
     ros::Subscriber sub1 =
         nodeHandler.subscribe("/bw_auto_dock/EnableCharge", 1, &DockController::updateChargeFlag, this);
     ros::Subscriber sub2 = nodeHandler.subscribe("/odom", 1, &DockController::updateOdom, this);
@@ -85,6 +86,16 @@ void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
         std_msgs::Bool pub_data;
         pub_data.data = false;
         mbarDetectPub_.publish(pub_data);
+        //开启最小速度限制
+        pub_data.data = true;
+        mlimitSpeedPub_.publish(pub_data);
+    }
+    else
+    {
+      //开启最小速度限制
+      std_msgs::Bool pub_data;
+      pub_data.data = true;
+      mlimitSpeedPub_.publish(pub_data);
     }
     //下发充电开关闭命令
     char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
@@ -385,6 +396,10 @@ void DockController::dealing_status()
                     rot_z_ = 0.;
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
+                    //关闭最小速度限制
+                    std_msgs::Bool pub_data;
+                    pub_data.data = false;
+                    mlimitSpeedPub_.publish(pub_data);
                 }
                 else
                 {
@@ -422,6 +437,10 @@ void DockController::dealing_status()
                     mCmdvelPub_.publish(current_vel);
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
+                    //恢复最小速度限制
+                    std_msgs::Bool pub_data;
+                    pub_data.data = true;
+                    mlimitSpeedPub_.publish(pub_data);
                 }
                 break;
             case CHARGE_STATUS_TEMP::docking2:
