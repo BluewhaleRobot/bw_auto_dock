@@ -11,7 +11,8 @@
     <param name="back_dock_ki" value="0.04"/>
     <param name="back_dock_kd" value="0.0"/>
     <!-- 自动充电设备串口号-->
-    <param name="port" value="/dev/ttyUSB004"/>
+    <param name="port_controler" value="/dev/dock_controler"/>
+    <param name="port_battery" value="/dev/dock_battery"/>
     <!-- 里程计所在坐标系名字-->
     <param name="odom_frame_id" value="map"/>
     <!-- 里程计话题名字-->
@@ -22,6 +23,8 @@
     <!-- 碰撞触发距离，单位mm -->
     <param name="crash_distance" value="120"/>
   </node>
+  <node pkg="tf" type="static_transform_publisher" name="baselinkSonar_dock1" args="-0.4 0 0 -3.1415926 0 0 base_link dock_sonar1 50"/>
+  <node pkg="tf" type="static_transform_publisher" name="baselinkSonar_dock2" args="0.1 0 0 0 0 0  base_link dock_sonar2 50"/>
   <!-- 设为０关闭底盘红外，设为１启动底盘红外-->
   <!-- <node pkg="nav_test" type="barDetectChanger.py" name="dock_barDetectChanger_node">
     <param name="barDetectFlag" value="0"/>

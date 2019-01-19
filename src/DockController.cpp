@@ -117,7 +117,7 @@ void DockController::dealing_status()
     boost::mutex::scoped_lock lock1(mMutex_charge);
     boost::mutex::scoped_lock lock2(mMutex_pose);
     geometry_msgs::Twist current_vel;
-    if (!mPose_flag_)
+    if (!mPose_flag_ || !bw_status_->battery_ready_)
         return;  //历程计没有开启
     if (mcurrentChargeFlag_)
     {

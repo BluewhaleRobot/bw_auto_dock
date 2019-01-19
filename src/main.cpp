@@ -44,11 +44,18 @@ int main(int argc, char** argv)
     ros::start();
 
     //获取串口参数
-    std::string port;
-    ros::param::param<std::string>("~port", port, "/dev/ttyUSB004");
-    int baud;
-    ros::param::param<int>("~baud", baud, 115200);
-    ROS_INFO_STREAM("port:" << port << " baud:" << baud);
+    std::string port_controler;
+    ros::param::param<std::string>("~port_controler", port_controler, "/dev/dock_controler");
+    int baud_controler;
+    ros::param::param<int>("~baud_controler", baud_controler, 115200);
+    ROS_INFO_STREAM("port_controler:" << port_controler << " baud_controler:" << baud_controler);
+
+    std::string port_battery;
+    ros::param::param<std::string>("~port_battery", port_battery, "/dev/dock_battery");
+    int baud_battery;
+    ros::param::param<int>("~baud_battery", baud_battery, 9600);
+    ROS_INFO_STREAM("port_battery:" << port_battery << " baud_battery:" << baud_battery);
+
     //获取小车机械参数
     double back_distance = 0;
     ros::param::param<double>("~back_distance", back_distance, 0.30);
@@ -79,11 +86,13 @@ int main(int argc, char** argv)
 
     try
     {
-        CallbackAsyncSerial serial(port, baud);
+        CallbackAsyncSerial serial_controler(port_controler, baud_controler);
+        serial_controler.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update_controler, &bw_status, _1, _2));
 
-        serial.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update, &bw_status, _1, _2));
+        CallbackAsyncSerial serial_battery(port_battery, baud_battery);
+        serial_battery.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update_battery, &bw_status, _1, _2));
 
-        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance, &bw_status, &serial);
+        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance, &bw_status, &serial_controler);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
         bw_controler.setDockPid(kp, ki, kd);
 
@@ -95,23 +104,41 @@ int main(int argc, char** argv)
 
         // send reset cmd
         char resetCmd[] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x01, 'I' };
-        serial.write(resetCmd, 5);
+        serial_controler.write(resetCmd, 5);
+        ros::Duration(3).sleep();
+        char runCmd[] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x01, 'R' };
+        serial_controler.write(runCmd, 5);
+
+        char getCmd[] = { (char)0xdd, (char)0xa5, (char)0x03, (char)0x00, (char)0xff, (char)0xfd, (char)0x77 };
 
         ros::Rate r(30);  //发布周期为50hz
+        int num_i=0;
         while (ros::ok())
         {
-            if (serial.errorStatus() || serial.isOpen() == false)
+            if (serial_battery.errorStatus() || serial_battery.isOpen() == false)
             {
-                ROS_ERROR_STREAM("Error: serial port closed unexpectedly");
+                ROS_ERROR_STREAM("Error: serial_battery port closed unexpectedly");
+                break;
+            }
+            if(num_i==0)
+            {
+              serial_battery.write(getCmd, 7);
+            }
+            num_i++;
+            if(num_i>6) num_i=0;
+            r.sleep();
+            if (serial_controler.errorStatus() || serial_controler.isOpen() == false)
+            {
+                ROS_ERROR_STREAM("Error: serial_controler port closed unexpectedly");
                 break;
             }
             bw_status.Refresh();  //定时发布状态
             bw_controler.dealing_status();
-            r.sleep();
+
         }
 
     quit:
-        serial.close();
+        serial_controler.close();
     }
     catch (std::exception& e)
     {

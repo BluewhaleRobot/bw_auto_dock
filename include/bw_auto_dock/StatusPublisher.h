@@ -46,6 +46,7 @@
 #include <memory.h>
 #include <math.h>
 #include <stdlib.h>
+#include <sensor_msgs/Range.h>
 
 #define PI 3.14159265
 
@@ -54,8 +55,8 @@ namespace bw_auto_dock
 typedef struct
 {
     float power;    //电源电压【1.0 4.0】v
-    float battery;  //电池电压
-    float current;  //充电电流
+    float battery_controler;  //电池电压
+    float current_controler;  //充电电流
     unsigned int left_sensor1;
     unsigned int left_sensor2;
     unsigned int right_sensor2;
@@ -63,6 +64,9 @@ typedef struct
     float distance1;
     float distance2;
     unsigned int time_stamp;  //时间戳
+    float battery;  //电池电压
+    float current;  //充电电流
+    float remaining_battery;
 } UPLOAD_STATUS;
 
 typedef enum class Dcharge_status
@@ -97,11 +101,13 @@ class StatusPublisher
   public:
     StatusPublisher(double crash_distance);
     void Refresh();
-    void Update(const char* data, unsigned int len);
+    void Update_battery(const char data[], unsigned int len);
+    void Update_controler(const char data[], unsigned int len);
     DOCK_POSITION get_dock_position();
     void set_charge_status(CHARGE_STATUS charge_status);
     CHARGE_STATUS get_charge_status();
     UPLOAD_STATUS sensor_status;
+    bool battery_ready_;
 
   private:
     DOCK_POSITION mdock_position_;
@@ -116,14 +122,24 @@ class StatusPublisher
     ros::Publisher mChargestatusPub;
     ros::Publisher mPowerPub;
     ros::Publisher mBatteryPowerPub;
+    ros::Publisher mRemainPowerPub;
     ros::Publisher mCurrentPub;
     ros::Publisher mCrashPub;
+
+    ros::Publisher mSonar1Pub;
+    ros::Publisher mSonar2Pub;
+
+    sensor_msgs::Range DockSonar1;
+    sensor_msgs::Range DockSonar2;
+
     bool mbUpdated;
 
     boost::mutex mMutex_sensor;
     boost::mutex mMutex_charge;
     boost::mutex mMutex_dock;
+    boost::mutex mMutex_battery;
     double crash_distance_;
+
 };
 
 }  // namespace bw_auto_dock
