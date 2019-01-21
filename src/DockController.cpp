@@ -119,6 +119,7 @@ void DockController::dealing_status()
     geometry_msgs::Twist current_vel;
     if (!mPose_flag_ || !bw_status_->battery_ready_)
         return;  //历程计没有开启
+    static ros::WallTime start = ros::WallTime::now();
     if (mcurrentChargeFlag_)
     {
         if (mcharge_status_ == CHARGE_STATUS::freed)
@@ -140,6 +141,7 @@ void DockController::dealing_status()
                 current_vel.angular.y = 0;
                 current_vel.angular.z = 0;
                 mCmdvelPub_.publish(current_vel);
+                start = ros::WallTime::now();
             }
             else
             {
@@ -462,6 +464,7 @@ void DockController::dealing_status()
                     current_vel.angular.y = 0;
                     current_vel.angular.z = 0;
                     mCmdvelPub_.publish(current_vel);
+                    start = ros::WallTime::now();
                 }
                 else
                 {
@@ -696,8 +699,9 @@ void DockController::dealing_status()
                             mcmd_serial_->write(cmd_str, 6);
                         }
                         //根据充电电流，判断是否已经充满
-                        current_average_ = current_average_ * 0.99 + bw_status_->sensor_status.current * 0.01;
-                        if ((current_average_) < 0.1)
+                        current_average_ = current_average_ * 0.8 + bw_status_->sensor_status.current * 0.2;
+                        ros::WallDuration t_diff = ros::WallTime::now() - start;
+                        if ((current_average_) < 0.1 && t_diff.toSec()>10)
                         {
                             //进入充满状态
                             //下发充满显示状态使能命令，绿灯
@@ -1165,6 +1169,8 @@ void DockController::setDockPositionCaculate(CaculateDockPosition* dock_position
 
 void DockController::caculateStation3()
 {
+    static bool last_choose1 = false;
+    static bool last_choose2 = false;
     //选择距离远的点
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta;
@@ -1176,30 +1182,38 @@ void DockController::caculateStation3()
     distance2 = (x - mstationPose2_[0]) * (x - mstationPose2_[0]) + (y - mstationPose2_[1]) * (y - mstationPose2_[1]);
     if (distance1 > distance2  )
     {
-        if(distance2>(0.1*0.1))
+        if((!last_choose2)&&(distance2>(0.1*0.1)||last_choose1))
         {//选2
            mstationPose3_[0] = mstationPose2_[0];
            mstationPose3_[1] = mstationPose2_[1];
+           last_choose1 = false;
+           last_choose2 = true;
         }
         else
         {
 	   //选1
            mstationPose3_[0] = mstationPose1_[0];
             mstationPose3_[1] = mstationPose1_[1];
+            last_choose1 = true;
+            last_choose2 = false;
         }
     }
     else
     {
-        if(distance1<(0.1*0.1))
+        if((distance1<(0.1*0.1)||last_choose1)&&(!last_choose2))
         {//选2
            mstationPose3_[0] = mstationPose2_[0];
            mstationPose3_[1] = mstationPose2_[1];
+           last_choose1 = false;
+           last_choose2 = true;
         }
         else
         {
 	   //选1
            mstationPose3_[0] = mstationPose1_[0];
             mstationPose3_[1] = mstationPose1_[1];
+            last_choose1 = true;
+            last_choose2 = false;
         }
     }
     theta = atan2(mstationPose3_[1] - y, mstationPose3_[0] - x);

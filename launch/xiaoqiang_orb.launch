@@ -1,7 +1,7 @@
 <launch>
   <node pkg="bw_auto_dock" type="bw_auto_dock" name="dock_driver">
     <!-- 充电部位到base_link位置的距离，base_link一般位于两个主动轮轴中间-->
-    <param name="back_distance" value="0.40"/>
+    <param name="back_distance" value="0.15"/>
     <!-- 自动充电对准过程中的最大直线速度-->
     <param name="max_linearspeed" value="0.20"/>
     <!-- 自动充电对准过程中的最大旋转速度-->
@@ -21,7 +21,7 @@
     <param name="station_filename" value="/home/xiaoqiang/slamdb/dock_station.txt"/>
     <param name="grid_length" value="4.0"/>
     <!-- 碰撞触发距离，单位mm -->
-    <param name="crash_distance" value="120"/>
+    <param name="crash_distance" value="80"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="baselinkSonar_dock1" args="-0.4 0 0 -3.1415926 0 0 base_link dock_sonar1 50"/>
   <node pkg="tf" type="static_transform_publisher" name="baselinkSonar_dock2" args="0.1 0 0 0 0 0  base_link dock_sonar2 50"/>
