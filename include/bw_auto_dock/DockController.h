@@ -127,6 +127,8 @@ class DockController
     float mstationPose1_[2];
     float mstationPose2_[2];
     float* mstationPose3_;
+
+    float min_x2_;
 };
 
 }  // namespace bw_auto_dock

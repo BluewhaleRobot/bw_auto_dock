@@ -60,6 +60,8 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
     kd_ = 0.;
     current_average_ = 1.0;
     mPose_flag_ = false;
+
+    min_x2_ = 100.0;
 }
 
 void DockController::run()
@@ -85,7 +87,7 @@ void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
         //关闭红外避障
         std_msgs::Bool pub_data;
         pub_data.data = false;
-        mbarDetectPub_.publish(pub_data);
+        //mbarDetectPub_.publish(pub_data);
         //开启最小速度限制
         pub_data.data = true;
         mlimitSpeedPub_.publish(pub_data);
@@ -154,6 +156,7 @@ void DockController::dealing_status()
         switch (mcharge_status_temp_)
         {
             case CHARGE_STATUS_TEMP::finding0:
+                ROS_DEBUG("finding0.0");
                 if (usefull_num_ == 0)
                 {
                     //根据充电桩位置,计算两个移动参考点
@@ -161,6 +164,7 @@ void DockController::dealing_status()
                     if (mdock_position_caculate_->getDockPosition(mstationPose1_, mstationPose2_))
                     {
                         //选择距离更远的站点当成station3
+                        ROS_DEBUG("finding0.1");
                         this->caculateStation3();
                     }
                     else
@@ -186,6 +190,8 @@ void DockController::dealing_status()
                 {
                     if (this->rotate2Station3())
                     {
+                        ROS_DEBUG("finding0.2");
+                        min_x2_ = 100.0;
                         //进入直线运动finding1
                         mcharge_status_ = CHARGE_STATUS::finding;
                         mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding1;
@@ -204,6 +210,7 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::finding1:
+                ROS_DEBUG("finding1.0");
                 //往前直线运动，探测到left_center或者right_center后记录当期位置，同时降低进入finding2
                 if (dock_position_current == DOCK_POSITION::left_center ||
                     dock_position_current == DOCK_POSITION::right_center)
@@ -225,6 +232,7 @@ void DockController::dealing_status()
                 {
                     if (this->goToStation3())
                     {
+                        ROS_DEBUG("finding1.1");
                         //没有捕获
                         mcharge_status_ = CHARGE_STATUS::finding;
                         mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding0;
@@ -245,6 +253,7 @@ void DockController::dealing_status()
                     (bw_status_->sensor_status.left_sensor2 == 3 || bw_status_->sensor_status.left_sensor2 == 7) &&
                     (bw_status_->sensor_status.right_sensor2 == 3 || bw_status_->sensor_status.right_sensor2 == 7))
                 {
+                    ROS_DEBUG("finding1.2");
                     mPose1_ = mRobot_pose_;
                     mPose2_ = mRobot_pose_;
                     this->caculatePose3();
@@ -261,6 +270,7 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::finding2:
+                ROS_DEBUG("finding2");
                 //往前直线运动，探测不到left_center或者right_center后记录当期位置，同时进入finding3
                 if (dock_position_current != DOCK_POSITION::left_center &&
                     dock_position_current != DOCK_POSITION::right_center)
@@ -307,6 +317,7 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::finding3:
+                ROS_DEBUG("finding3");
                 //后退，直到到达目标pose3同时进入finding4
                 if (this->backToPose3())
                 {
@@ -325,6 +336,7 @@ void DockController::dealing_status()
                 break;
             case CHARGE_STATUS_TEMP::finding4:
             {
+                ROS_DEBUG("finding4");
                 //原地旋转，直到出现DOCK_POSITION::back_center，进入docking1
                 static float target_theta = 0;
                 float theta;
@@ -423,6 +435,7 @@ void DockController::dealing_status()
                 break;
             }
             case CHARGE_STATUS_TEMP::docking1:
+                ROS_DEBUG("docking1.1");
                 // pid方式对准充电桩前进，当出现充电电压后停止，当侦测到碰上角落后也停止
                 if (this->backToDock())
                 {
@@ -1207,6 +1220,7 @@ void DockController::caculateStation3()
     mstationPose3_[2] = theta;
     //  ROS_INFO("station3 %f %f %f %f %f %f %f %f
     //  %f",mstationPose1_[0],mstationPose1_[1],mstationPose2_[0],mstationPose2_[1],mstationPose3_[0],mstationPose3_[1],mstationPose3_[2],x,y);
+    //ROS_ERROR("temp error1 %f %f; %f %f %f",x,y, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
 }
 
 bool DockController::rotate2Station3()
@@ -1224,9 +1238,10 @@ bool DockController::rotate2Station3()
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
-
+    //ROS_ERROR("temp error %f %f %f ; %f %f %f",roll,pitch,yaw, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
     if (fabs(theta - mstationPose3_[2]) < 0.02)
     {
+        //ROS_ERROR("temp error2 %f %f %f ; %f %f %f",x,y,yaw, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
         return true;
     }
     else
@@ -1275,6 +1290,7 @@ bool DockController::rotate2Station3()
 
 bool DockController::goToStation3()
 {
+    static float last_x2 = 0;
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta, x2, y2;
     x = current_pose.position.x;
@@ -1289,8 +1305,18 @@ bool DockController::goToStation3()
     x2 = cos(mstationPose3_[2]) * (x - mstationPose3_[0]) + sin(mstationPose3_[2]) * (y - mstationPose3_[1]);
     y2 = -sin(mstationPose3_[2]) * (x - mstationPose3_[0]) + cos(mstationPose3_[2]) * (y - mstationPose3_[1]);
 
+    if(min_x2_>99) last_x2 = x2;
+    if(fabs(x2)<min_x2_) min_x2_ = fabs(x2);
+
+    //ROS_ERROR("temp error3 %f %f %f ; %f %f",x,y,yaw, x2,y2);
+    //增加过零检查和发散检查
     if (fabs(x2) <= 0.03)
         return true;
+    if((x2*last_x2) < 0.0001) return true; //过最小值
+    if(fabs(min_x2_ - fabs(x2)) > 0.2) return true; //发散
+
+    last_x2 = x2;
+
     geometry_msgs::Twist current_vel;
     current_vel.linear.x = 0.2;
     current_vel.linear.y = 0;
