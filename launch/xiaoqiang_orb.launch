@@ -12,10 +12,10 @@
     <param name="back_dock_kd" value="0.0"/>
     <!-- 自动充电设备串口号-->
     <param name="port" value="/dev/ttyUSB004"/>
-    <!-- 里程计所在坐标系名字-->
-    <param name="odom_frame_id" value="map"/>
+    <!-- 全局坐标系名字-->
+    <param name="global_frame_id" value="map"/>
     <!-- 里程计话题名字-->
-    <remap from="/odom" to="/bWmono/Odom" />
+    <remap from="/odom" to="/xqserial_server/Odom" />
     <!-- 保存有充电桩位置的文件名,需要是绝对路径，xiaoqiang改成自己的用户名 -->
     <param name="station_filename" value="/home/xiaoqiang/slamdb/dock_station.txt"/>
     <param name="grid_length" value="4.0"/>
