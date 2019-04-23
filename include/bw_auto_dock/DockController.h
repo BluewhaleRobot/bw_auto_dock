@@ -53,6 +53,7 @@ typedef enum class Dcharge_status_temp
     charged1,
     temp1,
     temp2,
+    temp3,
 } CHARGE_STATUS_TEMP;
 
 class DockController
@@ -129,6 +130,7 @@ class DockController
     float* mstationPose3_;
 
     float min_x2_;
+    float min_x2_4_;
 };
 
 }  // namespace bw_auto_dock
