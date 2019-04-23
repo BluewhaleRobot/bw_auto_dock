@@ -77,13 +77,16 @@ int main(int argc, char** argv)
     double grid_length;
     ros::param::param<double>("~grid_length", grid_length, 4.0);
 
+    int barDetectFlag;
+    ros::param::param<int>("~barDetectFlag", barDetectFlag, 1);
+
     try
     {
         CallbackAsyncSerial serial(port, baud);
 
         serial.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update, &bw_status, _1, _2));
 
-        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance, &bw_status, &serial);
+        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance,barDetectFlag, &bw_status, &serial);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
         bw_controler.setDockPid(kp, ki, kd);
 

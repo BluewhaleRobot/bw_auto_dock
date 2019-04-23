@@ -59,7 +59,7 @@ typedef enum class Dcharge_status_temp
 class DockController
 {
   public:
-    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance, StatusPublisher* bw_status,
+    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,int barDetectFlag, StatusPublisher* bw_status,
                   CallbackAsyncSerial* cmd_serial);
     void run();
     void dealing_status();
@@ -131,6 +131,7 @@ class DockController
 
     float min_x2_;
     float min_x2_4_;
+    bool barDetectFlag_;
 };
 
 }  // namespace bw_auto_dock

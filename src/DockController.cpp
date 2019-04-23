@@ -29,9 +29,17 @@
 #include "bw_auto_dock/DockController.h"
 namespace bw_auto_dock
 {
-DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,
+DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance, int barDetectFlag,
                              StatusPublisher* bw_status, CallbackAsyncSerial* cmd_serial)
 {
+    if(barDetectFlag==1)
+    {
+      barDetectFlag_ = true;
+    }
+    else
+    {
+      barDetectFlag_ = false;
+    }
     back_distance_ = back_distance;
     max_linearspeed_ = max_linearspeed;
     max_rotspeed_ = max_rotspeed;
@@ -89,7 +97,7 @@ void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
         //关闭红外避障
         std_msgs::Bool pub_data;
         pub_data.data = false;
-        //mbarDetectPub_.publish(pub_data);
+        if(!barDetectFlag_) mbarDetectPub_.publish(pub_data);
         //开启最小速度限制
         pub_data.data = true;
         mlimitSpeedPub_.publish(pub_data);

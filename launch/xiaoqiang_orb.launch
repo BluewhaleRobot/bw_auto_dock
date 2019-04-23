@@ -21,9 +21,7 @@
     <param name="grid_length" value="4.0"/>
     <!-- 碰撞触发距离，单位mm -->
     <param name="crash_distance" value="120"/>
-  </node>
-  <!-- 设为０关闭底盘红外，设为１启动底盘红外-->
-  <!-- <node pkg="nav_test" type="barDetectChanger.py" name="dock_barDetectChanger_node">
+    <!-- 是否使能前向避障，0关闭，1开启 -->
     <param name="barDetectFlag" value="0"/>
-  </node> -->
+  </node>
 </launch>
