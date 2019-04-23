@@ -68,8 +68,8 @@ int main(int argc, char** argv)
     ros::param::param<double>("~back_dock_ki", ki, 0.04);
     ros::param::param<double>("~back_dock_kd", kd, 0.0);
 
-    std::string odom_frame_id;
-    ros::param::param<std::string>("~odom_frame_id", odom_frame_id, "odom");
+    std::string global_frame_id;
+    ros::param::param<std::string>("~global_frame_id", global_frame_id, "odom");
 
     std::string station_filename;
     ros::param::param<std::string>("~station_filename", station_filename, "dock_station.txt");
@@ -77,18 +77,21 @@ int main(int argc, char** argv)
     double grid_length;
     ros::param::param<double>("~grid_length", grid_length, 4.0);
 
+    int barDetectFlag;
+    ros::param::param<int>("~barDetectFlag", barDetectFlag, 1);
+
     try
     {
         CallbackAsyncSerial serial(port, baud);
 
         serial.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update, &bw_status, _1, _2));
 
-        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance, &bw_status, &serial);
+        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance,barDetectFlag,global_frame_id, &bw_status, &serial);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
         bw_controler.setDockPid(kp, ki, kd);
 
         //计算充电桩位置
-        bw_auto_dock::CaculateDockPosition caculate_DockPosition(grid_length, odom_frame_id, station_filename,
+        bw_auto_dock::CaculateDockPosition caculate_DockPosition(grid_length, global_frame_id, station_filename,
                                                                  &bw_controler, &bw_status);
         boost::thread caculate_DockPositionThread(&bw_auto_dock::CaculateDockPosition::run, &caculate_DockPosition);
         bw_controler.setDockPositionCaculate(&caculate_DockPosition);

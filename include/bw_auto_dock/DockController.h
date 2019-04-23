@@ -33,6 +33,10 @@
 #include <std_msgs/Bool.h>
 #include "bw_auto_dock/AsyncSerial.h"
 #include <time.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2/LinearMath/Transform.h>
+
 
 namespace bw_auto_dock
 {
@@ -59,7 +63,7 @@ typedef enum class Dcharge_status_temp
 class DockController
 {
   public:
-    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance, StatusPublisher* bw_status,
+    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,int barDetectFlag,std::string global_frame, StatusPublisher* bw_status,
                   CallbackAsyncSerial* cmd_serial);
     void run();
     void dealing_status();
@@ -131,6 +135,15 @@ class DockController
 
     float min_x2_;
     float min_x2_4_;
+    bool barDetectFlag_;
+
+    tf2_ros::Buffer tf2_buffer_;
+    tf2_ros::TransformListener tf2_;
+
+    geometry_msgs::PoseStamped robot_pose_;
+    geometry_msgs::PoseStamped global_pose_;
+    std::string global_frame_;
+    bool mTf_flag_;
 };
 
 }  // namespace bw_auto_dock

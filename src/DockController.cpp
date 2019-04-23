@@ -27,11 +27,23 @@
 
 #include "bw_auto_dock/getDockPosition.h"
 #include "bw_auto_dock/DockController.h"
+#include <tf2/convert.h>
+#include <tf2/utils.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 namespace bw_auto_dock
 {
-DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,
-                             StatusPublisher* bw_status, CallbackAsyncSerial* cmd_serial)
+DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance, int barDetectFlag,std::string global_frame,
+                             StatusPublisher* bw_status, CallbackAsyncSerial* cmd_serial):tf2_(tf2_buffer_),  global_frame_(global_frame)
 {
+    if(barDetectFlag==1)
+    {
+      barDetectFlag_ = true;
+    }
+    else
+    {
+      barDetectFlag_ = false;
+    }
     back_distance_ = back_distance;
     max_linearspeed_ = max_linearspeed;
     max_rotspeed_ = max_rotspeed;
@@ -64,6 +76,10 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
     min_x2_ = 100.0;
 
     min_x2_4_ = 100.0;//用来设置发散检查
+
+    mTf_flag_ = false;
+    tf2::toMsg(tf2::Transform::getIdentity(), global_pose_.pose);
+    tf2::toMsg(tf2::Transform::getIdentity(), robot_pose_.pose);
 }
 
 void DockController::run()
@@ -89,7 +105,7 @@ void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
         //关闭红外避障
         std_msgs::Bool pub_data;
         pub_data.data = false;
-        //mbarDetectPub_.publish(pub_data);
+        if(!barDetectFlag_) mbarDetectPub_.publish(pub_data);
         //开启最小速度限制
         pub_data.data = true;
         mlimitSpeedPub_.publish(pub_data);
@@ -111,9 +127,47 @@ void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
 
 void DockController::updateOdom(const nav_msgs::Odometry::ConstPtr& msg)
 {
-    boost::mutex::scoped_lock lock(mMutex_pose);
-    mRobot_pose_ = msg->pose.pose;
-    mPose_flag_ = true;
+    robot_pose_.header.frame_id = msg->header.frame_id;
+    robot_pose_.pose = msg->pose.pose;
+    robot_pose_.header.stamp = ros::Time();//获取最近时间的map坐标系下姿态
+    if(mTf_flag_)
+    {
+      try
+      {
+        tf2_buffer_.transform(robot_pose_, global_pose_, global_frame_);
+      }
+      catch (tf2::LookupException& ex)
+      {
+        boost::mutex::scoped_lock lock(mMutex_pose);
+        ROS_ERROR_THROTTLE(1.0, "No Transform available Error looking up robot pose: %s\n", ex.what());
+        mTf_flag_ = false;
+        mPose_flag_ = false;
+        return;
+      }
+      {
+        boost::mutex::scoped_lock lock(mMutex_pose);
+        mRobot_pose_ = global_pose_.pose;
+        mPose_flag_ = true;
+      }
+    }
+    else
+    {
+      std::string tf_error;
+      if(tf2_buffer_.canTransform(global_frame_, std::string("odom"), ros::Time(), ros::Duration(0.1), &tf_error))
+      {
+        mTf_flag_ = true;
+      }
+      else
+      {
+        mTf_flag_ = false;
+        ROS_DEBUG("Timed out waiting for transform from %s to %s to become available before running costmap, tf error: %s",
+               "odom", global_frame_.c_str(), tf_error.c_str());
+      }
+      {
+        boost::mutex::scoped_lock lock(mMutex_pose);
+        mPose_flag_ = false;
+      }
+    }
 }
 
 void DockController::dealing_status()
@@ -122,7 +176,21 @@ void DockController::dealing_status()
     boost::mutex::scoped_lock lock2(mMutex_pose);
     geometry_msgs::Twist current_vel;
     if (!mPose_flag_)
-        return;  //历程计没有开启
+    {
+      if (mcharge_status_ != CHARGE_STATUS::freed && mcurrentChargeFlag_)
+      {
+        //停止移动
+        current_vel.linear.x = 0;
+        current_vel.linear.y = 0;
+        current_vel.linear.z = 0;
+        current_vel.angular.x = 0;
+        current_vel.angular.y = 0;
+        current_vel.angular.z = 0;
+        ROS_ERROR("map to base_link not ready!");
+        mCmdvelPub_.publish(current_vel);
+      }
+      return;  //历程计没有开启
+    }
     if (mcurrentChargeFlag_)
     {
         if (mcharge_status_ == CHARGE_STATUS::freed)
@@ -358,11 +426,11 @@ void DockController::dealing_status()
                 else
                 {
                     float theta_error = theta - target_theta;
-                    if (theta_error <= -PI)
-                        theta_error += 2 * PI;
-                    if (theta_error > PI)
-                        theta_error -= 2 * PI;
-                    if (fabs(theta_error) >= (0.9 * PI))
+                    if (theta_error <= -PI_temp)
+                        theta_error += 2 * PI_temp;
+                    if (theta_error > PI_temp)
+                        theta_error -= 2 * PI_temp;
+                    if (fabs(theta_error) >= (0.9 * PI_temp))
                     {
                         //旋转超过162度后还是没有发现，进入finding0
                         mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding0;
@@ -1040,31 +1108,31 @@ bool DockController::rotateOrigin()
     if (usefull_num_ == 0)
     {
         //先正转20度
-        target_theta = theta + 10.f / 180.f * PI;
-        if (target_theta <= -PI)
-            target_theta += 2 * PI;
-        if (target_theta > PI)
-            target_theta -= 2 * PI;
+        target_theta = theta + 10.f / 180.f * PI_temp;
+        if (target_theta <= -PI_temp)
+            target_theta += 2 * PI_temp;
+        if (target_theta > PI_temp)
+            target_theta -= 2 * PI_temp;
         usefull_num_++;
     }
     else if (usefull_num_ == 2)
     {
         //再反转40度
-        target_theta = theta - 20.f / 180.f * PI;
-        if (target_theta <= -PI)
-            target_theta += 2 * PI;
-        if (target_theta > PI)
-            target_theta -= 2 * PI;
+        target_theta = theta - 20.f / 180.f * PI_temp;
+        if (target_theta <= -PI_temp)
+            target_theta += 2 * PI_temp;
+        if (target_theta > PI_temp)
+            target_theta -= 2 * PI_temp;
         usefull_num_++;
     }
     else if (usefull_num_ == 4)
     {
         //最后正转20度
-        target_theta = theta + 10.f / 180.f * PI;
-        if (target_theta <= -PI)
-            target_theta += 2 * PI;
-        if (target_theta > PI)
-            target_theta -= 2 * PI;
+        target_theta = theta + 10.f / 180.f * PI_temp;
+        if (target_theta <= -PI_temp)
+            target_theta += 2 * PI_temp;
+        if (target_theta > PI_temp)
+            target_theta -= 2 * PI_temp;
         usefull_num_++;
     }
     if (usefull_num_ == 1 || usefull_num_ == 5)
@@ -1092,10 +1160,10 @@ bool DockController::rotateOrigin()
         mCmdvelPub_.publish(current_vel);
     }
     float theta_error = theta - target_theta;
-    if (theta_error <= -PI)
-        theta_error += 2 * PI;
-    if (theta_error > PI)
-        theta_error -= 2 * PI;
+    if (theta_error <= -PI_temp)
+        theta_error += 2 * PI_temp;
+    if (theta_error > PI_temp)
+        theta_error -= 2 * PI_temp;
     if (fabs(theta_error) < 0.02)
     {
         //到达目标角度停止，切换方向
@@ -1314,7 +1382,7 @@ bool DockController::rotate2Station3()
 
         if (delta_theta > 0.001)
         {
-            if (delta_theta < (PI + 0.001))
+            if (delta_theta < (PI_temp + 0.001))
             {
                 //反转
                 current_vel.angular.z = -0.3;
@@ -1327,7 +1395,7 @@ bool DockController::rotate2Station3()
         }
         else
         {
-            if (delta_theta < (-PI - 0.001))
+            if (delta_theta < (-PI_temp - 0.001))
             {
                 //反转
                 current_vel.angular.z = -0.3;

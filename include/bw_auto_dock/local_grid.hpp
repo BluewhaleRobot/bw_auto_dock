@@ -175,7 +175,7 @@ class LocalGrid
                 x1 = (j - p0.x) * resolution_;
                 if (j == p0.x)
                 {
-                    theta = PI / 2.0;
+                    theta = PI_temp / 2.0;
                 }
                 else
                 {
@@ -184,7 +184,7 @@ class LocalGrid
 
                 left_score_points1_[index1_][0] = x1;
                 left_score_points1_[index1_][1] = y1;
-                left_score_points1_[index1_][2] = theta - PI;
+                left_score_points1_[index1_][2] = theta - PI_temp;
 
                 right_score_points1_[index1_][0] = -x1;
                 right_score_points1_[index1_][1] = -y1;
@@ -192,16 +192,16 @@ class LocalGrid
 
                 back_score_points1_[index1_][0] = -y1;
                 back_score_points1_[index1_][1] = x1;
-                theta += PI / 2.0;
-                if (theta > PI)
-                    theta = theta - 2.0 * PI;
+                theta += PI_temp / 2.0;
+                if (theta > PI_temp)
+                    theta = theta - 2.0 * PI_temp;
                 if (theta > 0)
                 {
-                    back_score_points1_[index1_][2] = theta - PI;
+                    back_score_points1_[index1_][2] = theta - PI_temp;
                 }
                 else
                 {
-                    back_score_points1_[index1_][2] = theta + PI;
+                    back_score_points1_[index1_][2] = theta + PI_temp;
                 }
 
                 index1_++;
@@ -216,7 +216,7 @@ class LocalGrid
                 x1 = (j - p0.x) * resolution_;
                 if (j == p0.x)
                 {
-                    theta = PI / 2.0;
+                    theta = PI_temp / 2.0;
                 }
                 else
                 {
@@ -225,7 +225,7 @@ class LocalGrid
 
                 left_score_points2_[index2_][0] = x1;
                 left_score_points2_[index2_][1] = y1;
-                left_score_points2_[index2_][2] = theta - PI;
+                left_score_points2_[index2_][2] = theta - PI_temp;
 
                 right_score_points2_[index2_][0] = -x1;
                 right_score_points2_[index2_][1] = -y1;
@@ -233,16 +233,16 @@ class LocalGrid
 
                 back_score_points2_[index2_][0] = -y1;
                 back_score_points2_[index2_][1] = x1;
-                theta += PI / 2.0;
-                if (theta > PI)
-                    theta = theta - 2.0 * PI;
+                theta += PI_temp / 2.0;
+                if (theta > PI_temp)
+                    theta = theta - 2.0 * PI_temp;
                 if (theta > 0)
                 {
-                    back_score_points2_[index2_][2] = theta - PI;
+                    back_score_points2_[index2_][2] = theta - PI_temp;
                 }
                 else
                 {
-                    back_score_points2_[index2_][2] = theta + PI;
+                    back_score_points2_[index2_][2] = theta + PI_temp;
                 }
 
                 index2_++;
@@ -256,7 +256,7 @@ class LocalGrid
                 x1 = (j - p0.x) * resolution_;
                 if (j == p0.x)
                 {
-                    theta = PI / 2.0;
+                    theta = PI_temp / 2.0;
                 }
                 else
                 {
@@ -265,7 +265,7 @@ class LocalGrid
                 // ROS_INFO("index3_ %d %d %d ",index3_,j,l3.points[i].y);
                 left_score_points3_[index3_][0] = x1;
                 left_score_points3_[index3_][1] = y1;
-                left_score_points3_[index3_][2] = theta - PI;
+                left_score_points3_[index3_][2] = theta - PI_temp;
 
                 right_score_points3_[index3_][0] = -x1;
                 right_score_points3_[index3_][1] = -y1;
@@ -273,16 +273,16 @@ class LocalGrid
 
                 back_score_points3_[index3_][0] = -y1;
                 back_score_points3_[index3_][1] = x1;
-                theta += PI / 2.0;
-                if (theta > PI)
-                    theta = theta - 2.0 * PI;
+                theta += PI_temp / 2.0;
+                if (theta > PI_temp)
+                    theta = theta - 2.0 * PI_temp;
                 if (theta > 0)
                 {
-                    back_score_points3_[index3_][2] = theta - PI;
+                    back_score_points3_[index3_][2] = theta - PI_temp;
                 }
                 else
                 {
-                    back_score_points3_[index3_][2] = theta + PI;
+                    back_score_points3_[index3_][2] = theta + PI_temp;
                 }
 
                 index3_++;
@@ -296,7 +296,7 @@ class LocalGrid
                 x1 = (j - p0.x) * resolution_;
                 if (j == p0.x)
                 {
-                    theta = PI / 2.0;
+                    theta = PI_temp / 2.0;
                 }
                 else
                 {
@@ -305,7 +305,7 @@ class LocalGrid
 
                 left_score_points4_[index4_][0] = x1;
                 left_score_points4_[index4_][1] = y1;
-                left_score_points4_[index4_][2] = theta - PI;
+                left_score_points4_[index4_][2] = theta - PI_temp;
 
                 right_score_points4_[index4_][0] = -x1;
                 right_score_points4_[index4_][1] = -y1;
@@ -313,16 +313,16 @@ class LocalGrid
 
                 back_score_points4_[index4_][0] = -y1;
                 back_score_points4_[index4_][1] = x1;
-                theta += PI / 2.0;
-                if (theta > PI)
-                    theta = theta - 2.0 * PI;
+                theta += PI_temp / 2.0;
+                if (theta > PI_temp)
+                    theta = theta - 2.0 * PI_temp;
                 if (theta > 0)
                 {
-                    back_score_points4_[index4_][2] = theta - PI;
+                    back_score_points4_[index4_][2] = theta - PI_temp;
                 }
                 else
                 {
-                    back_score_points4_[index4_][2] = theta + PI;
+                    back_score_points4_[index4_][2] = theta + PI_temp;
                 }
 
                 index4_++;
@@ -665,10 +665,10 @@ class LocalGrid
 
             theta = (*score_points)[i][2] + pose[2];
 
-            if (theta >= PI)
-                theta -= 2 * PI;
-            if (theta < -PI)
-                theta += 2 * PI;
+            if (theta >= PI_temp)
+                theta -= 2 * PI_temp;
+            if (theta < -PI_temp)
+                theta += 2 * PI_temp;
 
             float_temp = (x) / resolution_;
             x_num = static_cast<int>(float_temp);
@@ -789,10 +789,10 @@ class LocalGrid
                 theta = (left_dock_cells2[i] + right_dock_cells2[i] + back_dock_cells2[i]) / value;
             }
 
-            if (theta > PI)
-                theta -= 2.0 * PI;
-            if (theta < -PI)
-                theta += 2.0 * PI;
+            if (theta > PI_temp)
+                theta -= 2.0 * PI_temp;
+            if (theta < -PI_temp)
+                theta += 2.0 * PI_temp;
 
             mean_dock_cells2[i] = theta;
         }

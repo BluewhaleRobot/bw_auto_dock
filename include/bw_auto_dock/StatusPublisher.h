@@ -47,7 +47,9 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define PI 3.14159265
+#ifndef PI_temp
+#define PI_temp 3.14159265
+#endif
 
 namespace bw_auto_dock
 {
