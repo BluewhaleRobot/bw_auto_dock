@@ -62,6 +62,8 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
     mPose_flag_ = false;
 
     min_x2_ = 100.0;
+
+    min_x2_4_ = 100.0;//用来设置发散检查
 }
 
 void DockController::run()
@@ -505,6 +507,7 @@ void DockController::dealing_status()
                         {
                             ROS_DEBUG("docking2.4");
                             this->caculatePose4();
+                            min_x2_4_ = 100.0;
                             mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
                             usefull_num_ = 0;
                             unusefull_num_ = 0;
@@ -588,7 +591,7 @@ void DockController::dealing_status()
                 current_vel.angular.z = 0;
                 mCmdvelPub_.publish(current_vel);
                 break;
-                //旋转到正对目标点3
+                //旋转到正对目标点4
                 geometry_msgs::Pose current_pose = mRobot_pose_;
 
                 float x, y, theta;
@@ -683,6 +686,7 @@ void DockController::dealing_status()
                             mcmd_serial_->write(cmd_str, 6);
                         }
                         this->caculatePose4();
+                        min_x2_4_ = 100.0;
                         mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
                         usefull_num_ = 0;
                         unusefull_num_ = 0;
@@ -746,15 +750,15 @@ void DockController::dealing_status()
                 if (usefull_num_ > 18000)
                 {
                     // 10分钟后转成freed
-                    //进入free显示状态，下发充电开关闭命令，关闭灯
-                    char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
-                    if (NULL != mcmd_serial_)
-                    {
-                        mcmd_serial_->write(cmd_str, 6);
-                    }
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
-                    mcharge_status_ = CHARGE_STATUS::freed;
-                    bw_status_->set_charge_status(mcharge_status_);
+                    // //进入free显示状态，下发充电开关闭命令，关闭灯
+                    // char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+                    // if (NULL != mcmd_serial_)
+                    // {
+                    //     mcmd_serial_->write(cmd_str, 6);
+                    // }
+                    // mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
+                    // mcharge_status_ = CHARGE_STATUS::freed;
+                    // bw_status_->set_charge_status(mcharge_status_);
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
                     mcurrentChargeFlag_ = false;
@@ -776,6 +780,37 @@ void DockController::dealing_status()
     }
     else
     {
+        if(mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged)
+        {
+          //先进入temp3,前进到pose4,再转入free
+          this->caculatePose4();
+          min_x2_4_ = 100.0;
+          mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp3;
+        }
+
+        if(mcharge_status_temp_ == CHARGE_STATUS_TEMP::temp3)
+        {
+          //运动到目标点4
+          ROS_DEBUG("temp3.1 ");
+          if (this->goToPose4())
+          {
+              //转入free
+              ROS_DEBUG("temp3.2 ");
+              mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
+              //停止前进，
+              current_vel.linear.x = 0;
+              current_vel.linear.y = 0;
+              current_vel.linear.z = 0;
+              current_vel.angular.x = 0;
+              current_vel.angular.y = 0;
+              current_vel.angular.z = 0;
+              mCmdvelPub_.publish(current_vel);
+          }
+          else
+          {
+              return;
+          }
+        }
         if (mcharge_status_ == CHARGE_STATUS::docking || mcharge_status_ == CHARGE_STATUS::finding)
         {
             //停止移动
@@ -786,6 +821,15 @@ void DockController::dealing_status()
             current_vel.angular.y = 0;
             current_vel.angular.z = 0;
             mCmdvelPub_.publish(current_vel);
+        }
+        if (bw_status_->sensor_status.power > 9.0)
+        {
+          //下发充电开关闭命令
+          char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+          if (NULL != mcmd_serial_)
+          {
+              mcmd_serial_->write(cmd_str, 6);
+          }
         }
         mcharge_status_ = CHARGE_STATUS::freed;
         mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
@@ -815,8 +859,8 @@ void DockController::caculatePose3()
     mPose3_[0] = x - back_distance_ * cos(theta);
     mPose3_[1] = y - back_distance_ * sin(theta);
     mPose3_[2] = theta;
-    ROS_DEBUG("theta12  %f  %f x1 y1 %f %f x2 y2 %f %f ", theta1, theta2, mPose1_.position.x, mPose1_.position.y,
-              mPose2_.position.x, mPose2_.position.y);
+    //ROS_DEBUG("theta12  %f  %f x1 y1 %f %f x2 y2 %f %f ", theta1, theta2, mPose1_.position.x, mPose1_.position.y,
+    //            mPose2_.position.x, mPose2_.position.y);
 }
 
 bool DockController::backToPose3()
@@ -835,8 +879,8 @@ bool DockController::backToPose3()
     x2 = cos(mPose3_[2]) * (x - mPose3_[0]) + sin(mPose3_[2]) * (y - mPose3_[1]);
     y2 = -sin(mPose3_[2]) * (x - mPose3_[0]) + cos(mPose3_[2]) * (y - mPose3_[1]);
 
-    ROS_DEBUG("theta3  %f  %f x3 y3 %f %f x y %f %f x2 y2 %f %f ", mPose3_[2], theta, mPose3_[0], mPose3_[1], x, y, x2,
-              y2);
+    //ROS_DEBUG("theta3  %f  %f x3 y3 %f %f x y %f %f x2 y2 %f %f ", mPose3_[2], theta, mPose3_[0], mPose3_[1], x, y, x2,
+    //          y2);
 
     if (fabs(x2) <= 0.03)
         return true;
@@ -903,8 +947,8 @@ bool DockController::backToDock()
     rot_error_temp1 = left2_error1_ - left2_error2_;
     rot_error_temp2 = left2_error1_ - 2 * left2_error2_ + left2_error3_;
     rot_delta = kp * rot_error_temp1 + ki * left2_error1_ + kd * rot_error_temp2;
-    ROS_DEBUG("ousp1 delta  %f  error %f %f %f sonsor %d ", rot_delta, left2_error1_, rot_error_temp1, rot_error_temp2,
-              bw_status_->sensor_status.left_sensor2);
+    //ROS_DEBUG("ousp1 delta  %f  error %f %f %f sonsor %d ", rot_delta, left2_error1_, rot_error_temp1, rot_error_temp2,
+    //          bw_status_->sensor_status.left_sensor2);
     // rot_error_temp1 = right2_error1_ - right2_error2_;
     // rot_error_temp2 = right2_error1_ - 2*right2_error2_ + right2_error3_;
     // rot_delta += kp*rot_error_temp1 + ki*right2_error1_ + kd*rot_error_temp2;
@@ -915,7 +959,7 @@ bool DockController::backToDock()
     if (rot_delta < -max_rotspeed_)
         rot_delta = -max_rotspeed_;
     rot_z_ = rot_delta;
-    ROS_DEBUG("ousp3 rot  %f", rot_z_);
+    //ROS_DEBUG("ousp3 rot  %f", rot_z_);
     left2_error3_ = left2_error2_;
     left2_error2_ = left2_error1_;
     // right2_error3_ = right2_error2_;
@@ -1104,6 +1148,7 @@ void DockController::caculatePose4()
 
 bool DockController::goToPose4()
 {
+    static float last_x2 = 0;
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta, x2, y2;
     x = current_pose.position.x;
@@ -1118,8 +1163,18 @@ bool DockController::goToPose4()
     x2 = cos(mPose4_[2]) * (x - mPose4_[0]) + sin(mPose4_[2]) * (y - mPose4_[1]);
     y2 = -sin(mPose4_[2]) * (x - mPose4_[0]) + cos(mPose4_[2]) * (y - mPose4_[1]);
 
+    if(min_x2_4_>99) last_x2 = x2;
+    if(fabs(x2)<min_x2_4_) min_x2_4_ = fabs(x2);
+
+    //ROS_ERROR("temp error3 %f %f %f ; %f %f",x,y,yaw, x2,y2);
+    //增加过零检查和发散检查
     if (fabs(x2) <= 0.03)
         return true;
+    if((x2*last_x2) < 0.0001) return true; //过最小值
+    if(fabs(min_x2_4_ - fabs(x2)) > 0.2) return true; //发散
+
+    last_x2 = x2;
+
     geometry_msgs::Twist current_vel;
     current_vel.linear.x = 0.2;
     current_vel.linear.y = 0;
