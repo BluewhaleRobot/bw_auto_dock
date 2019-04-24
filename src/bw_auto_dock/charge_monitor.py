@@ -10,6 +10,7 @@ import struct
 from galileo_serial_server.msg import GalileoStatus, GalileoNativeCmds
 from threading import _start_new_thread
 from std_msgs.msg import String
+import os
 
 GALILEO_PUB = None
 AUDIO_PUB = None
@@ -18,11 +19,19 @@ LAST_CHARGE_CMD_TIME = 0
 POWER_LOW = 36.0
 CURRENT_STATUS = None
 
+POWER_RECORDS = []
 
 def update_status(status):
-    global GALILEO_PUB, CHARGE_GOAL, LAST_CHARGE_CMD_TIME, POWER_LOW, CURRENT_STATUS
+    global GALILEO_PUB, CHARGE_GOAL, LAST_CHARGE_CMD_TIME, POWER_LOW, CURRENT_STATUS, POWER_RECORDS
     now = int(time.time() * 1000)
     CURRENT_STATUS = status
+    # 电压可能存在跳动的情况，取平均滤波,取5s记录
+    if len(POWER_RECORDS) < 30 * 5:
+        POWER_RECORDS.append(status.power)
+    else:
+        POWER_RECORDS.pop(0)
+        POWER_RECORDS.append(status.power)
+
     # 5min内只能发送一次充电指令
     if now - LAST_CHARGE_CMD_TIME < 5 * 60 * 1000:
         return
@@ -40,7 +49,10 @@ def update_status(status):
         return
     if status.busyStatus == 1:
         return
-    if status.power < POWER_LOW:
+    if len(POWER_RECORDS) < 30 * 5:
+        # 没有充足的记录
+        return
+    if sum(POWER_RECORDS) / len(POWER_RECORDS) < POWER_LOW and sum(POWER_RECORDS) / len(POWER_RECORDS) > POWER_LOW / 2:
         LAST_CHARGE_CMD_TIME = now
         _start_new_thread(charge_task, ())
 
@@ -100,16 +112,8 @@ def charge_task():
         GALILEO_PUB.publish(galileo_cmds)
 
 
-if __name__ == "__main__":
-    rospy.init_node("charge_monitor")
-    status_monitor_sub = rospy.Subscriber(
-        "/galileo/status", GalileoStatus, update_status)
-    GALILEO_PUB = rospy.Publisher(
-        "/galileo/cmds", GalileoNativeCmds, queue_size=5)
-    AUDIO_PUB = rospy.Publisher(
-        "/xiaoqiang_tts/text", String, queue_size=1
-    )
-    POWER_LOW = float(rospy.get_param("~power_low", "36.0"))
+def load_charge_goal():
+    global CHARGE_GOAL
     # 计算充电桩位置
     station_filename = rospy.get_param(
         "~station_filename", default="/home/xiaoqiang/slamdb/dock_station.txt")
@@ -127,15 +131,40 @@ if __name__ == "__main__":
             "y": float(line_data[1]),
         }
         line_data = lines[2].split(' ')
-        docker_point = {
-            "x": float(line_data[0]),
-            "y": float(line_data[1]),
-            "theta": float(line_data[2])
-        }
         CHARGE_GOAL = {
             "x": (ref_point1["x"] + ref_point2["x"]) / 2,
             "y": (ref_point1["y"] + ref_point2["y"]) / 2
         }
 
+
+if __name__ == "__main__":
+    rospy.init_node("charge_monitor")
+    status_monitor_sub = rospy.Subscriber(
+        "/galileo/status", GalileoStatus, update_status)
+    GALILEO_PUB = rospy.Publisher(
+        "/galileo/cmds", GalileoNativeCmds, queue_size=5)
+    AUDIO_PUB = rospy.Publisher(
+        "/xiaoqiang_tts/text", String, queue_size=1
+    )
+    POWER_LOW = float(rospy.get_param("~power_low", "36.0"))
+    load_charge_goal()
+    station_filename = rospy.get_param(
+        "~station_filename", default="/home/xiaoqiang/slamdb/dock_station.txt")
+    station_file_stamp = os.path.getmtime(station_filename)
     while not rospy.is_shutdown():
         time.sleep(1)
+        current_station_stamp = os.path.getmtime(station_filename)
+        # 充电桩文件发生更改
+        if current_station_stamp != station_file_stamp:
+            station_file_stamp = current_station_stamp
+            load_charge_goal()
+            # 更新saved-slamdb里面的充电桩文件
+            if os.path.exists("/home/xiaoqiang/slamdb/map_name.txt"):
+                with open("/home/xiaoqiang/slamdb/map_name.txt") as map_name_file:
+                    map_name = map_name_file.read().strip()
+                    if os.path.exists(os.path.join("/home/xiaoqiang/saved-slamdb/", map_name)):
+                        os.system("cp -rfp {station_filename} {dist}".format(
+                            station_filename=station_filename,
+                            dist=os.path.join("/home/xiaoqiang/saved-slamdb/", map_name, "dock_station.txt")
+                        ))
+        
