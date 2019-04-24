@@ -84,7 +84,7 @@ class DockController
     bool goToStation3();
     bool rotate2Station3();
     void caculateStation3();
-
+    void setPowerParam(double power_threshold);
   private:
     CallbackAsyncSerial* mcmd_serial_;
     CaculateDockPosition* mdock_position_caculate_;
@@ -144,6 +144,7 @@ class DockController
     geometry_msgs::PoseStamped global_pose_;
     std::string global_frame_;
     bool mTf_flag_;
+    double power_threshold_;
 };
 
 }  // namespace bw_auto_dock

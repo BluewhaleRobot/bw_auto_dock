@@ -80,6 +80,13 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
     mTf_flag_ = false;
     tf2::toMsg(tf2::Transform::getIdentity(), global_pose_.pose);
     tf2::toMsg(tf2::Transform::getIdentity(), robot_pose_.pose);
+
+    power_threshold_ = 41.0;
+}
+
+void DockController::setPowerParam(double power_threshold)
+{
+  power_threshold_ = power_threshold;
 }
 
 void DockController::run()
@@ -782,7 +789,7 @@ void DockController::dealing_status()
                         }
                         //根据充电电流，判断是否已经充满
                         current_average_ = current_average_ * 0.99 + bw_status_->sensor_status.current * 0.01;
-                        if ((current_average_) < 0.1)
+                        if ((current_average_) < 0.1 || bw_status_->sensor_status.battery > power_threshold_)
                         {
                             //进入充满状态
                             //下发充满显示状态使能命令，绿灯
@@ -815,7 +822,7 @@ void DockController::dealing_status()
                 mCmdvelPub_.publish(current_vel);
                 break;
             case CHARGE_STATUS_TEMP::charged1:
-                if (usefull_num_ > 18000)
+                if (usefull_num_ > 18000 || bw_status_->sensor_status.battery > power_threshold_)
                 {
                     // 10分钟后转成freed
                     // //进入free显示状态，下发充电开关闭命令，关闭灯
