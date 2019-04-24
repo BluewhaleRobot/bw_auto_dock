@@ -32,7 +32,7 @@
 
 namespace bw_auto_dock
 {
-StatusPublisher::StatusPublisher(double crash_distance)
+StatusPublisher::StatusPublisher(double crash_distance,double power_scale)
 {
     mbUpdated = false;
     mdock_position_ = DOCK_POSITION::not_found;
@@ -42,6 +42,7 @@ StatusPublisher::StatusPublisher(double crash_distance)
     sensor_status.right_sensor2 = 0;
     sensor_status.right_sensor1 = 0;
     crash_distance_ = crash_distance;
+    power_scale_ = power_scale;
 
     mIRsensor1Pub = mNH.advertise<std_msgs::Int32>("bw_auto_dock/IRsensor1", 1, true);
     mIRsensor2Pub = mNH.advertise<std_msgs::Int32>("bw_auto_dock/IRsensor2", 1, true);
@@ -385,7 +386,7 @@ void StatusPublisher::Refresh()
         pub_data2.data = sensor_status.power;
         mPowerPub.publish(pub_data2);
 
-        pub_data2.data = sensor_status.battery;
+        pub_data2.data = sensor_status.battery*power_scale_;
         mBatteryPowerPub.publish(pub_data2);
 
         pub_data2.data = sensor_status.current;

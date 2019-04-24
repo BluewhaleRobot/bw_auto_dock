@@ -55,7 +55,6 @@ int main(int argc, char** argv)
 
     double crash_distance;
     ros::param::param<double>("~crash_distance", crash_distance, 70);
-    bw_auto_dock::StatusPublisher bw_status(crash_distance);
 
     //获取小车控制参数
     double max_linearspeed, max_rotspeed;
@@ -80,6 +79,13 @@ int main(int argc, char** argv)
     int barDetectFlag;
     ros::param::param<int>("~barDetectFlag", barDetectFlag, 1);
 
+    double power_scale;
+    ros::param::param<double>("~power_scale", power_scale, 1.0);
+
+    double power_threshold;
+    ros::param::param<double>("~power_threshold", power_threshold, 41.0);
+
+    bw_auto_dock::StatusPublisher bw_status(crash_distance,power_scale);
     try
     {
         CallbackAsyncSerial serial(port, baud);
@@ -89,7 +95,7 @@ int main(int argc, char** argv)
         bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance,barDetectFlag,global_frame_id, &bw_status, &serial);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
         bw_controler.setDockPid(kp, ki, kd);
-
+        bw_controler.setPowerParam(power_threshold);
         //计算充电桩位置
         bw_auto_dock::CaculateDockPosition caculate_DockPosition(grid_length, global_frame_id, station_filename,
                                                                  &bw_controler, &bw_status);

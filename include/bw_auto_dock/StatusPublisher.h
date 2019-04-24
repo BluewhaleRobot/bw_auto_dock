@@ -97,7 +97,7 @@ typedef enum class Ddock_position
 class StatusPublisher
 {
   public:
-    StatusPublisher(double crash_distance);
+    StatusPublisher(double crash_distance,double power_scale);
     void Refresh();
     void Update(const char* data, unsigned int len);
     DOCK_POSITION get_dock_position();
@@ -126,6 +126,7 @@ class StatusPublisher
     boost::mutex mMutex_charge;
     boost::mutex mMutex_dock;
     double crash_distance_;
+    double power_scale_;
 };
 
 }  // namespace bw_auto_dock
