@@ -42,7 +42,7 @@ def update_status(status):
     # 只在导航模式下启动
     if status.navStatus != 1:
         return
-    if status.visualStatus != 1:
+    if status.visualStatus < 1:
         return
     if status.chargeStatus == 1 or status.chargeStatus == 2:
         # 正在充电或已经充满
