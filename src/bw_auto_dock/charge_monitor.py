@@ -167,4 +167,3 @@ if __name__ == "__main__":
                             station_filename=station_filename,
                             dist=os.path.join("/home/xiaoqiang/saved-slamdb/", map_name, "dock_station.txt")
                         ))
-        

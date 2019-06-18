@@ -781,7 +781,7 @@ void DockController::dealing_status()
                     if (unusefull_num_ > 20)
                     {
                         //下发充电开关使能命令,进入充电状态,黄灯
-                        unusefull_num_ = 21;
+                        if(unusefull_num_>1800) unusefull_num_ = 18001;
                         char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x01 };
                         if (NULL != mcmd_serial_)
                         {
@@ -812,14 +812,17 @@ void DockController::dealing_status()
                         }
                     }
                 }
-                //停止移动
-                current_vel.linear.x = 0;
-                current_vel.linear.y = 0;
-                current_vel.linear.z = 0;
-                current_vel.angular.x = 0;
-                current_vel.angular.y = 0;
-                current_vel.angular.z = 0;
-                mCmdvelPub_.publish(current_vel);
+                if(unusefull_num_<1800)
+                {
+                  //停止移动
+                  current_vel.linear.x = 0;
+                  current_vel.linear.y = 0;
+                  current_vel.linear.z = 0;
+                  current_vel.angular.x = 0;
+                  current_vel.angular.y = 0;
+                  current_vel.angular.z = 0;
+                  mCmdvelPub_.publish(current_vel);
+                }
                 break;
             case CHARGE_STATUS_TEMP::charged1:
                 if (usefull_num_ > 18000 || bw_status_->sensor_status.battery > power_threshold_)
@@ -843,12 +846,12 @@ void DockController::dealing_status()
                     usefull_num_++;
                 }
                 //停止移动
-                current_vel.linear.x = 0;
-                current_vel.linear.y = 0;
-                current_vel.linear.z = 0;
-                current_vel.angular.x = 0;
-                current_vel.angular.y = 0;
-                current_vel.angular.z = 0;
+                // current_vel.linear.x = 0;
+                // current_vel.linear.y = 0;
+                // current_vel.linear.z = 0;
+                // current_vel.angular.x = 0;
+                // current_vel.angular.y = 0;
+                // current_vel.angular.z = 0;
                 mCmdvelPub_.publish(current_vel);
                 break;
         }
