@@ -29,11 +29,14 @@
 #define __GETDOCKPOSITION_H__
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
-#include "bw_auto_dock/local_grid.hpp"
 #include <boost/filesystem.hpp>
 #include <stdio.h>
 #include <iomanip>
 #include <fstream>
+#include <ar_track_alvar_msgs/AlvarMarker.h>
+#include <ar_track_alvar_msgs/AlvarMarkers.h>
+#include <geometry_msgs/PoseStamped.h>
+#include "bw_auto_dock/DockController.h"
 
 namespace bw_auto_dock
 {
@@ -41,20 +44,37 @@ class DockController;
 class CaculateDockPosition
 {
   public:
-    CaculateDockPosition(double grid_length, std::string frame_id, std::string dock_station_filename,
+    CaculateDockPosition(double station_distance, std::string frame_id, std::string dock_station_filename,
                          DockController* dock_controler, StatusPublisher* bw_status);
+    bool getDockPosition(float (&station_pose_baselink_goal)[3]);
     bool getDockPosition(float (&station_pose1)[2], float (&station_pose2)[2]);
     void run();
     void updateMapsaveFlag(const std_msgs::Bool& currentFlag);
     void saveDockPositon();
+    void updateMarkerPose(const ar_track_alvar_msgs::AlvarMarkers& currentMarkers);
+    bool getMarkerPose(float (&marker_pose)[3]);
+    bool set_dock_position(float (&pose)[3]);
+    bool get_dock_position(float (&pose)[3]);
 
   private:
     DockController* mdock_controler_;
     StatusPublisher* mbw_status_;
-    LocalGrid* mlocal_grid_;
     std::string mdock_station_filename_;
     float station_distance_;
     boost::mutex mMutex_;
+    float dock_realposition_[3];
+    bool dock_realposition_ready_;
+    bool dock_mark_ready_;
+    bool dock_mark_update_;
+
+    float dock_base_link_position_[3];
+
+    geometry_msgs::PoseStamped mMarker_pose_base_;
+    geometry_msgs::PoseStamped mMarker_pose_camera_;
+    tf2_ros::Buffer tf2_buffer_;
+    tf2_ros::TransformListener tf2_;
+
+    bool mTf_flag_;
 };
 
 }  // namespace bw_auto_dock

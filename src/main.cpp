@@ -53,19 +53,44 @@ int main(int argc, char** argv)
     double back_distance = 0;
     ros::param::param<double>("~back_distance", back_distance, 0.30);
 
+    //充电导航点到充电部位的距离
+    double station_distance = 0;
+    ros::param::param<double>("~station_distance", station_distance, 0.80);
+
     double crash_distance;
     ros::param::param<double>("~crash_distance", crash_distance, 70);
 
     //获取小车控制参数
-    double max_linearspeed, max_rotspeed;
+    double y_min_set, x_min_set,theta_min_set;
 
-    ros::param::param<double>("~max_linearspeed", max_linearspeed, 0.2);
-    ros::param::param<double>("~max_rotspeed", max_rotspeed, 0.2);
+    ros::param::param<double>("~y_min_set", y_min_set, 0.05);
+    ros::param::param<double>("~x_min_set", x_min_set, 0.3);
+    ros::param::param<double>("~theta_min_set", theta_min_set, 0.3);
 
-    double kp, ki, kd;
-    ros::param::param<double>("~back_dock_kp", kp, 0.2);
-    ros::param::param<double>("~back_dock_ki", ki, 0.04);
-    ros::param::param<double>("~back_dock_kd", kd, 0.0);
+    double kp_theta_set, kd_theta_set, ki_theta_set;
+    ros::param::param<double>("~kp_theta_set", kp_theta_set, 0.4);
+    ros::param::param<double>("~kd_theta_set", kd_theta_set, 0.8);
+    ros::param::param<double>("~ki_theta_set", ki_theta_set, 1.0);
+
+    double kp_y_set, kd_y_set, ki_y_set;
+    ros::param::param<double>("~kp_y_set", kp_y_set, 0.4);
+    ros::param::param<double>("~kd_y_set", kd_y_set, 0.8);
+    ros::param::param<double>("~ki_y_set", ki_y_set, 10.0);
+
+    double kp_x_set, kd_x_set, ki_x_set;
+    ros::param::param<double>("~kp_x_set", kp_x_set, 0.4);
+    ros::param::param<double>("~kd_x_set", kd_x_set, 0.8);
+    ros::param::param<double>("~ki_x_set", ki_x_set, 10.0);
+
+    double max_x_speed, max_y_speed, max_theta_speed;
+    ros::param::param<double>("~max_x_speed", max_x_speed, 0.3);
+    ros::param::param<double>("~max_y_speed", max_y_speed, 0.3);
+    ros::param::param<double>("~max_theta_speed", max_theta_speed, 0.3);
+
+    double goal_x_error, goal_y_error, goal_theta_error;
+    ros::param::param<double>("~goal_x_error", goal_x_error, 0.01);
+    ros::param::param<double>("~goal_y_error", goal_y_error, 0.01);
+    ros::param::param<double>("~goal_theta_error", goal_theta_error, 0.02);
 
     std::string global_frame_id;
     ros::param::param<std::string>("~global_frame_id", global_frame_id, "odom");
@@ -73,8 +98,6 @@ int main(int argc, char** argv)
     std::string station_filename;
     ros::param::param<std::string>("~station_filename", station_filename, "dock_station.txt");
 
-    double grid_length;
-    ros::param::param<double>("~grid_length", grid_length, 4.0);
 
     int barDetectFlag;
     ros::param::param<int>("~barDetectFlag", barDetectFlag, 1);
@@ -88,39 +111,26 @@ int main(int argc, char** argv)
     bw_auto_dock::StatusPublisher bw_status(crash_distance,power_scale);
     try
     {
-        CallbackAsyncSerial serial(port, baud);
 
-        serial.setCallback(boost::bind(&bw_auto_dock::StatusPublisher::Update, &bw_status, _1, _2));
-
-        bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance,barDetectFlag,global_frame_id, &bw_status, &serial);
+        bw_auto_dock::DockController bw_controler(back_distance,0.2,0.3,crash_distance,barDetectFlag,global_frame_id, &bw_status);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
-        bw_controler.setDockPid(kp, ki, kd);
+        bw_controler.setDockPid(kp_theta_set, kd_theta_set, ki_theta_set,kp_y_set, kd_y_set, ki_y_set, kp_x_set, kd_x_set, ki_x_set);
+        bw_controler.setScaleParam(theta_min_set, y_min_set, x_min_set, max_x_speed, max_y_speed, max_theta_speed, goal_theta_error, goal_y_error,goal_x_error);
         bw_controler.setPowerParam(power_threshold);
         //计算充电桩位置
-        bw_auto_dock::CaculateDockPosition caculate_DockPosition(grid_length, global_frame_id, station_filename,
+        bw_auto_dock::CaculateDockPosition caculate_DockPosition(station_distance, global_frame_id, station_filename,
                                                                  &bw_controler, &bw_status);
         boost::thread caculate_DockPositionThread(&bw_auto_dock::CaculateDockPosition::run, &caculate_DockPosition);
         bw_controler.setDockPositionCaculate(&caculate_DockPosition);
 
-        // send reset cmd
-        char resetCmd[] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x01, 'I' };
-        serial.write(resetCmd, 5);
-
         ros::Rate r(30);  //发布周期为50hz
         while (ros::ok())
         {
-            if (serial.errorStatus() || serial.isOpen() == false)
-            {
-                ROS_ERROR_STREAM("Error: serial port closed unexpectedly");
-                break;
-            }
             bw_status.Refresh();  //定时发布状态
             bw_controler.dealing_status();
             r.sleep();
         }
 
-    quit:
-        serial.close();
     }
     catch (std::exception& e)
     {

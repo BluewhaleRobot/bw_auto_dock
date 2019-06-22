@@ -1,24 +1,40 @@
 <launch>
   <node pkg="bw_auto_dock" type="bw_auto_dock" name="dock_driver">
     <!-- 充电部位到base_link位置的距离，base_link一般位于两个主动轮轴中间-->
-    <param name="back_distance" value="0.40"/>
-    <!-- 自动充电对准过程中的最大直线速度-->
-    <param name="max_linearspeed" value="0.20"/>
-    <!-- 自动充电对准过程中的最大旋转速度-->
-    <param name="max_rotspeed" value="1.0"/>
+    <param name="back_distance" value="0.33"/>
+    <param name="station_distance" value="0.8"/>
+
+    <param name="y_min_set" value="0.05"/>
+    <param name="x_min_set" value="0.3"/>
+    <param name="theta_min_set" value="0.3"/>
+
+    <param name="goal_x_error" value="0.01"/>
+    <param name="goal_y_error" value="0.01"/>
+    <param name="goal_theta_error" value="0.02"/>
+
+    <param name="max_x_speed" value="0.30"/>
+    <param name="max_y_speed" value="0.30"/>
+    <param name="max_theta_speed" value="0.30"/>
+
     <!-- 自动充电直线运动对准阶段中的pid参数-->
-    <param name="back_dock_kp" value="0.20"/>
-    <param name="back_dock_ki" value="0.04"/>
-    <param name="back_dock_kd" value="0.0"/>
+    <param name="kp_theta_set" value="0.4"/>
+    <param name="kd_theta_set" value="0.8"/>
+    <param name="ki_theta_set" value="1.0"/>
+    <param name="kp_y_set" value="0.4"/>
+    <param name="kd_y_set" value="0.8"/>
+    <param name="ki_y_set" value="10.0"/>
+    <param name="kp_x_set" value="0.4"/>
+    <param name="kd_x_set" value="0.8"/>
+    <param name="ki_x_set" value="10.0"/>
     <!-- 自动充电设备串口号-->
     <param name="port" value="/dev/ttyUSB004"/>
     <!-- 全局坐标系名字-->
     <param name="global_frame_id" value="odom"/>
     <!-- 里程计话题名字-->
-    <remap from="/odom" to="/xqserial_server/Odom" />
+    <!-- <remap from="/odom" to="/xqserial_server/Odom" /> -->
     <!-- 保存有充电桩位置的文件名,需要是绝对路径，xiaoqiang改成自己的用户名 -->
     <param name="station_filename" value="/home/xiaoqiang/slamdb/dock_station.txt"/>
-    <param name="grid_length" value="4.0"/>
+
     <!-- 碰撞触发距离，单位mm -->
     <param name="crash_distance" value="120"/>
     <!-- 是否使能前向避障，0关闭，1开启 -->

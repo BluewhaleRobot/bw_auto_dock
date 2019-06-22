@@ -63,8 +63,7 @@ typedef enum class Dcharge_status_temp
 class DockController
 {
   public:
-    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,int barDetectFlag,std::string global_frame, StatusPublisher* bw_status,
-                  CallbackAsyncSerial* cmd_serial);
+    DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,int barDetectFlag,std::string global_frame, StatusPublisher* bw_status);
     void run();
     void dealing_status();
     void updateOdom(const nav_msgs::Odometry::ConstPtr& msg);
@@ -73,7 +72,8 @@ class DockController
     bool backToPose3();
     bool backToDock();
     float computeDockError();
-    void setDockPid(double kp, double ki, double kd);
+    void setDockPid(double kp_theta_set,double  kd_theta_set,double  ki_theta_set,double kp_y_set,double  kd_y_set,double  ki_y_set,double  kp_x_set,double  kd_x_set,double  ki_x_set);
+    void setScaleParam(double theta_min_set,double  y_min_set,double  x_min_set,double  max_x_speed,double  max_y_speed,double  max_theta_speed,double goal_theta_error,double goal_y_error,double goal_x_error);
     bool rotateOrigin();
     void caculatePose4();
     bool goToPose4();
@@ -86,7 +86,6 @@ class DockController
     void caculateStation3();
     void setPowerParam(double power_threshold);
   private:
-    CallbackAsyncSerial* mcmd_serial_;
     CaculateDockPosition* mdock_position_caculate_;
     CHARGE_STATUS mcharge_status_;
     CHARGE_STATUS_TEMP mcharge_status_temp_;
@@ -131,7 +130,7 @@ class DockController
     bool mPose_flag_;
     float mstationPose1_[2];
     float mstationPose2_[2];
-    float* mstationPose3_;
+    float mstationPose3_[2];
 
     float min_x2_;
     float min_x2_4_;
@@ -142,9 +141,42 @@ class DockController
 
     geometry_msgs::PoseStamped robot_pose_;
     geometry_msgs::PoseStamped global_pose_;
+    geometry_msgs::PointStamped global_station3_pose_;
+    geometry_msgs::PointStamped local_station3_pose_;
     std::string global_frame_;
     bool mTf_flag_;
     double power_threshold_;
+
+    float y_min_set_; //对准过程中y轴偏差阈值
+    float x_min_set_; //对准过程中x轴偏差阈值,小于这个值需要回退到参考点
+    float theta_min_set_; //对准过程中角度偏差阈值
+
+    float max_theta_speed_;
+    float max_y_speed_;
+    float max_x_speed_;
+
+    float goal_theta_error_;
+    float goal_y_error_;
+    float goal_x_error_;
+
+    float kp_theta_set_;
+    float kd_theta_set_;
+    float ki_theta_set_;
+    float kp_y_set_;
+    float kd_y_set_;
+    float ki_y_set_;
+    float kp_x_set_;
+    float kd_x_set_;
+    float ki_x_set_;
+
+    float goal_position_[3];
+
+    float error_theta_last_;
+    float error_theta_sum_;
+    float error_y_last_;
+    float error_y_sum_;
+    float error_x_last_;
+    float error_x_sum_;
 };
 
 }  // namespace bw_auto_dock

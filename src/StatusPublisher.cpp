@@ -367,9 +367,6 @@ void StatusPublisher::Refresh()
         //发布dock位置
         pub_data.data = (int)mdock_position_;
         mDockpostionPub.publish(pub_data);
-        //发布充电任务状态
-        pub_data.data = (int)mcharge_status_;
-        mChargestatusPub.publish(pub_data);
 
         if (sensor_status.distance1 <= this->crash_distance_&&sensor_status.distance1>0.1)
         {
@@ -394,6 +391,10 @@ void StatusPublisher::Refresh()
 
         mbUpdated = false;
     }
+    //发布充电任务状态
+    std_msgs::Int32 pub_data;
+    pub_data.data = (int)mcharge_status_;
+    mChargestatusPub.publish(pub_data);
 }
 
 DOCK_POSITION StatusPublisher::get_dock_position()
