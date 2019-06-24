@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="bw_auto_dock" type="bw_auto_dock" name="dock_driver">
+  <node pkg="bw_auto_dock" type="bw_auto_dock" name="dock_driver" respawn="true" respawn_delay="10">
     <!-- 充电部位到base_link位置的距离，base_link一般位于两个主动轮轴中间-->
     <param name="back_distance" value="0.33"/>
     <param name="station_distance" value="0.8"/>
