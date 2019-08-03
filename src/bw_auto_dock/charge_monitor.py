@@ -87,6 +87,7 @@ def charge_task():
         # 等待插入点完成
         print("等待插入点完成")
         charge_goal_index = int(rospy.get_param("/galileo/goal_num", 0)) - 1
+        time.sleep(0.1)
     # start the goal
     galileo_cmds.data = 'g' + chr(charge_goal_index)
     galileo_cmds.length = len(galileo_cmds.data)
