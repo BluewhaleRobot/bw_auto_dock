@@ -1383,7 +1383,7 @@ bool DockController::rotate2Station3()
         current_vel.angular.x = 0;
         current_vel.angular.y = 0;
         current_vel.angular.z = 0;
-        mCmdvelPub_.publish(current_vel);
+        //mCmdvelPub_.publish(current_vel);
 
         float delta_theta = theta - mstationPose3_[2];
 
