@@ -120,6 +120,9 @@ def load_charge_goal():
     # 计算充电桩位置
     station_filename = rospy.get_param(
         "~station_filename", default="/home/xiaoqiang/slamdb/dock_station.txt")
+    if not os.path.exists(station_filename):
+        CHARGE_GOAL = None
+        return
     with open(station_filename) as station_file:
         station_info = station_file.read()
         lines = station_info.split('\n')
@@ -153,6 +156,9 @@ if __name__ == "__main__":
     load_charge_goal()
     station_filename = rospy.get_param(
         "~station_filename", default="/home/xiaoqiang/slamdb/dock_station.txt")
+    if not os.path.exists(station_filename):
+        time.sleep(5 *60)
+        exit(0)
     station_file_stamp = os.path.getmtime(station_filename)
     while not rospy.is_shutdown():
         time.sleep(1)
