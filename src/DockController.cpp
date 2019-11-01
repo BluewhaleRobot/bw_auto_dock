@@ -424,11 +424,14 @@ void DockController::dealing_status()
                 double roll, pitch, yaw;
                 m1.getRPY(roll, pitch, yaw);
                 theta = yaw;
+                static DOCK_POSITION dock_position_reference;
+                static DOCK_POSITION dock_position_last;
                 if (usefull_num_ == 0)
                 {
                     usefull_num_++;
                     //记录当前角度
                     target_theta = theta;
+                    dock_position_last = dock_position_current;
                 }
                 else
                 {
@@ -462,8 +465,10 @@ void DockController::dealing_status()
                 // mdock__referenss_position_ == DOCK_POSITION::right_center
                 // )||((bw_status_->sensor_status.right_sensor2==3 ||bw_status_->sensor_status.right_sensor2==7)  &&
                 // mdock__referenss_position_ == DOCK_POSITION::left_center) )
-                if (dock_position_current == DOCK_POSITION::back_center)
+                if ( unusefull_num_ >3)
                 {
+                    ROS_DEBUG("finding4.1 %d %d %d %d %d",(int)dock_position_current,(int)dock_position_reference,(int)DOCK_POSITION::back_center,bw_status_->sensor_status.left_sensor2,bw_status_->sensor_status.right_sensor2);
+
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking1;
                     mcharge_status_ = CHARGE_STATUS::docking;
                     bw_status_->set_charge_status(mcharge_status_);
@@ -492,6 +497,23 @@ void DockController::dealing_status()
                 }
                 else
                 {
+                     //过中点检测
+                    if(dock_position_current == DOCK_POSITION::back_center && unusefull_num_ ==0)
+                    {
+                      dock_position_reference = dock_position_last;
+                      unusefull_num_ ++;
+                    }
+                    if(dock_position_current != DOCK_POSITION::back_center && unusefull_num_ >0)
+                    {
+                      if(dock_position_current != dock_position_reference)
+                      {
+                        unusefull_num_ = 4;
+                      }
+                      else{
+                        unusefull_num_ =0;
+                      }
+                    }
+                    dock_position_last = dock_position_current;
                     if (mdock__referenss_position_ == DOCK_POSITION::left_center)
                     {
                         //右转

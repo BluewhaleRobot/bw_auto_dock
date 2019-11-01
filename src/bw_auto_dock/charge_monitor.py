@@ -93,12 +93,14 @@ def charge_task():
     galileo_cmds.length = len(galileo_cmds.data)
     GALILEO_PUB.publish(galileo_cmds)
     # wait goal start
-    while CURRENT_STATUS.targetNumID != charge_goal_index:
+    while CURRENT_STATUS.targetNumID != charge_goal_index and CURRENT_STATUS.navStatus == 1:
         print("等待导航任务启动")
         time.sleep(1)
     # wait for goal complete
-    while CURRENT_STATUS.targetNumID == charge_goal_index and not (CURRENT_STATUS.targetStatus == 0 or CURRENT_STATUS.targetStatus == -1):
+    while CURRENT_STATUS.targetNumID == charge_goal_index and CURRENT_STATUS.navStatus == 1 and not (CURRENT_STATUS.targetStatus == 0 or CURRENT_STATUS.targetStatus == -1):
         time.sleep(1)
+    if CURRENT_STATUS.navStatus != 1:
+        return
     if CURRENT_STATUS.targetStatus == 0:
         # reset goal
         galileo_cmds = GalileoNativeCmds()
