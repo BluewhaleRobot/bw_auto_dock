@@ -35,8 +35,15 @@
 #include "bw_auto_dock/DockController.h"
 #include "bw_auto_dock/StatusPublisher.h"
 #include "bw_auto_dock/getDockPosition.h"
+#include <std_msgs/String.h>
 
 using namespace std;
+
+inline bool exists(const std::string &name)
+{
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+}
 
 int main(int argc, char** argv)
 {
@@ -86,6 +93,9 @@ int main(int argc, char** argv)
     ros::param::param<double>("~power_threshold", power_threshold, 41.0);
 
     bw_auto_dock::StatusPublisher bw_status(crash_distance,power_scale);
+    
+    ros::NodeHandle mNH;
+    ros::Publisher audio_pub = mNH.advertise<std_msgs::String>("/xiaoqiang_tts/text", 1, true);
     try
     {
         CallbackAsyncSerial serial(port, baud);
@@ -124,7 +134,16 @@ int main(int argc, char** argv)
     }
     catch (std::exception& e)
     {
-        ROS_ERROR_STREAM("Exception: " << e.what());
+      ROS_ERROR_STREAM("Open " << port << " failed.");
+      ROS_ERROR_STREAM("Exception: " << e.what());
+      // 检查串口设备是否存在
+      if (!exists(port))
+      {
+          // 发送语音提示消息
+          std_msgs::String audio_msg;
+          audio_msg.data = "未发现充电串口设备，请检查充电串口连接";
+          audio_pub.publish(audio_msg);
+      }
     }
 
     ros::shutdown();

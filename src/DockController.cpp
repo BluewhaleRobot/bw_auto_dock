@@ -95,10 +95,70 @@ void DockController::run()
     mCmdvelPub_ = nodeHandler.advertise<geometry_msgs::Twist>("/cmd_vel", 1, true);
     mbarDetectPub_ = nodeHandler.advertise<std_msgs::Bool>("/barDetectFlag", 1, true);
     mlimitSpeedPub_ = nodeHandler.advertise<std_msgs::Bool>("/limitSpeedFlag", 1, true);
-    ros::Subscriber sub1 =
-        nodeHandler.subscribe("/bw_auto_dock/EnableCharge", 1, &DockController::updateChargeFlag, this);
+    ros::Subscriber sub1 = nodeHandler.subscribe("/bw_auto_dock/EnableCharge", 1, &DockController::updateChargeFlag, this);
     ros::Subscriber sub2 = nodeHandler.subscribe("/odom", 1, &DockController::updateOdom, this);
+    ros::Subscriber sub3 = nodeHandler.subscribe("/galileo/status", 1, &DockController::UpdateNavStatus, this);
     ros::spin();
+}
+
+void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus& current_receive_status)
+{
+    //在空闲情况下如果超声波测量值小于250毫米，需要前进脱离障碍物,最多运行10秒时间
+    static ros::WallTime free_time =ros::WallTime::now();
+    static bool need_stop = false;
+    static int stop_num = 0;
+
+    boost::mutex::scoped_lock lock(mMutex_charge);
+    galileoStatus_.navStatus = current_receive_status.navStatus;
+    galileoStatus_.visualStatus = current_receive_status.visualStatus;
+    galileoStatus_.chargeStatus = current_receive_status.chargeStatus;
+    galileoStatus_.mapStatus = current_receive_status.mapStatus;
+
+    ros::WallDuration free_diff = ros::WallTime::now() - free_time;
+
+    if(galileoStatus_.navStatus == 0 && galileoStatus_.chargeStatus == 0)
+    {
+      free_diff = ros::WallTime::now() - free_time;
+    }
+    else{
+      free_time =ros::WallTime::now();
+    }
+
+    free_diff = ros::WallTime::now() - free_time;
+
+    if(free_diff.toSec()>60 && free_diff.toSec()<60+10)
+    {
+      if(bw_status_->sensor_status.distance1 <= 250 )
+      {
+        need_stop = true;
+        stop_num = 0;
+        geometry_msgs::Twist current_vel;
+        //停止移动
+        current_vel.linear.x = 0.1;
+        current_vel.linear.y = 0;
+        current_vel.linear.z = 0;
+        current_vel.angular.x = 0;
+        current_vel.angular.y = 0;
+        current_vel.angular.z = 0;
+        mCmdvelPub_.publish(current_vel);
+        return;
+      }
+    }
+
+    if(need_stop && stop_num < 2)
+    {
+      geometry_msgs::Twist current_vel;
+      //停止移动
+      current_vel.linear.x = 0;
+      current_vel.linear.y = 0;
+      current_vel.linear.z = 0;
+      current_vel.angular.x = 0;
+      current_vel.angular.y = 0;
+      current_vel.angular.z = 0;
+      mCmdvelPub_.publish(current_vel);
+      stop_num ++;
+    }
+    if(stop_num >=2 ) need_stop = false;
 }
 
 void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
@@ -621,23 +681,43 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::docking3:
-                //往前移动，直到不会触发碰撞
-                if ((bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)||bw_status_->sensor_status.power > 9.0)
+                //往前移动，直到不会触发碰撞,或者已经移动30×3次
+                if ((bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1 )||usefull_num_ > 30*3 ||bw_status_->sensor_status.power > 9.0)
                 {
-                    //进入docking2
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking2;
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                    //停止移动
-                    geometry_msgs::Twist current_vel;
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                    ROS_DEBUG("docking3.1 %d", usefull_num_);
+                    if(usefull_num_ > 30*3)
+                    {
+                      ROS_DEBUG("docking3.0");
+                      this->caculatePose4();
+                      min_x2_4_ = 100.0;
+                      mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
+                      usefull_num_ = 0;
+                      unusefull_num_ = 0;
+                      //停止移动
+                      current_vel.linear.x = 0;
+                      current_vel.linear.y = 0;
+                      current_vel.linear.z = 0;
+                      current_vel.angular.x = 0;
+                      current_vel.angular.y = 0;
+                      current_vel.angular.z = 0;
+                      mCmdvelPub_.publish(current_vel);
+                    }
+                    else{
+                      //进入docking2
+                      mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking2;
+                      usefull_num_ = 0;
+                      unusefull_num_ = 0;
+                      //停止移动
+                      geometry_msgs::Twist current_vel;
+                      current_vel.linear.x = 0;
+                      current_vel.linear.y = 0;
+                      current_vel.linear.z = 0;
+                      current_vel.angular.x = 0;
+                      current_vel.angular.y = 0;
+                      current_vel.angular.z = 0;
+                      mCmdvelPub_.publish(current_vel);
+                      ROS_DEBUG("docking3.1 %d", usefull_num_);
+                    }
+
                 }
                 else
                 {

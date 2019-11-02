@@ -36,7 +36,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Transform.h>
-
+#include "galileo_serial_server/GalileoStatus.h"
 
 namespace bw_auto_dock
 {
@@ -85,6 +85,7 @@ class DockController
     bool rotate2Station3();
     void caculateStation3();
     void setPowerParam(double power_threshold);
+    void UpdateNavStatus(const galileo_serial_server::GalileoStatus& current_receive_status);
   private:
     CallbackAsyncSerial* mcmd_serial_;
     CaculateDockPosition* mdock_position_caculate_;
@@ -145,6 +146,7 @@ class DockController
     std::string global_frame_;
     bool mTf_flag_;
     double power_threshold_;
+    galileo_serial_server::GalileoStatus galileoStatus_;
 };
 
 }  // namespace bw_auto_dock

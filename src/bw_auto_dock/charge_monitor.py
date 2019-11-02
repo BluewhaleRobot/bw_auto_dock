@@ -3,7 +3,7 @@
 """
 电量监控服务，当电量太低的时候，启动自动充电
 """
-
+import commands
 import rospy
 import time
 import struct
@@ -12,6 +12,10 @@ from threading import _start_new_thread
 from std_msgs.msg import String
 import os
 
+CHARGING_TIME = 0
+CHARGING_OFF_TIME = 30*60*1000 #30分钟后自动关机
+CHARGING_LAST_STATUS = 0
+
 GALILEO_PUB = None
 AUDIO_PUB = None
 CHARGE_GOAL = None
@@ -19,12 +23,27 @@ LAST_CHARGE_CMD_TIME = 0
 POWER_LOW = 36.0
 CURRENT_STATUS = None
 
+LAST_NAV_TIME = int(time.time() * 1000)
+
 POWER_RECORDS = []
 
 def update_status(status):
-    global GALILEO_PUB, CHARGE_GOAL, LAST_CHARGE_CMD_TIME, POWER_LOW, CURRENT_STATUS, POWER_RECORDS
+    global AUDIO_PUB, GALILEO_PUB, CHARGE_GOAL, LAST_CHARGE_CMD_TIME, POWER_LOW, CURRENT_STATUS, POWER_RECORDS, CHARGING_TIME, CHARGING_OFF_TIME, CHARGING_LAST_STATUS
+    global LAST_NAV_TIME
     now = int(time.time() * 1000)
     CURRENT_STATUS = status
+    if status.chargeStatus == 1 and CHARGING_LAST_STATUS != 1 :
+        CHARGING_TIME = now
+
+    if status.chargeStatus == 1 and CHARGING_LAST_STATUS == 1:
+        if now - CHARGING_TIME >= CHARGING_OFF_TIME:
+            #已经持续充电指定时间，需要关机以加速充电
+            AUDIO_PUB.publish("系统10秒后进入关机省电模式")
+            time.sleep(10)
+            commands.getstatusoutput(
+                'sudo shutdown -h now')
+
+    CHARGING_LAST_STATUS = status.chargeStatus
     # 电压可能存在跳动的情况，取平均滤波,取5s记录
     if len(POWER_RECORDS) < 30 * 5:
         POWER_RECORDS.append(status.power)
@@ -39,9 +58,23 @@ def update_status(status):
         return
     if CHARGE_GOAL is None:
         return
+
+    if len(POWER_RECORDS) < 30 * 5:
+        # 没有充足的记录
+        return
+
     # 只在导航模式下启动
     if status.navStatus != 1:
+        if (now - LAST_NAV_TIME) > 5*60*1000 and  sum(POWER_RECORDS) / len(POWER_RECORDS) < (POWER_LOW+0.2) and sum(POWER_RECORDS) / len(POWER_RECORDS) > (POWER_LOW / 2 +0.2):
+            #电量低的情况下需要强制开启导航服务，每5分钟尝试一次
+            galileo_cmds = GalileoNativeCmds()
+            galileo_cmds.data = 'm' + chr(0x00)
+            galileo_cmds.length = len(galileo_cmds.data)
+            galileo_cmds.header.stamp = rospy.Time.now()
+            GALILEO_PUB.publish(galileo_cmds)
+            LAST_NAV_TIME = now
         return
+
     if status.visualStatus < 1:
         return
     if status.chargeStatus == 1 or status.chargeStatus == 2:
@@ -49,9 +82,7 @@ def update_status(status):
         return
     if status.busyStatus == 1:
         return
-    if len(POWER_RECORDS) < 30 * 5:
-        # 没有充足的记录
-        return
+
     if sum(POWER_RECORDS) / len(POWER_RECORDS) < POWER_LOW and sum(POWER_RECORDS) / len(POWER_RECORDS) > POWER_LOW / 2:
         LAST_CHARGE_CMD_TIME = now
         _start_new_thread(charge_task, ())
