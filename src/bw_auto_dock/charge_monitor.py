@@ -67,6 +67,8 @@ def update_status(status):
     if status.navStatus != 1:
         if (now - LAST_NAV_TIME) > 5*60*1000 and  sum(POWER_RECORDS) / len(POWER_RECORDS) < (POWER_LOW+0.2) and sum(POWER_RECORDS) / len(POWER_RECORDS) > (POWER_LOW / 2 +0.2):
             #电量低的情况下需要强制开启导航服务，每5分钟尝试一次
+            AUDIO_PUB.publish("电量低，即将开启导航服务，开启服务过程中机器人可能会原地旋转，请注意安全")
+            time.sleep(3)
             galileo_cmds = GalileoNativeCmds()
             galileo_cmds.data = 'm' + chr(0x00)
             galileo_cmds.length = len(galileo_cmds.data)
