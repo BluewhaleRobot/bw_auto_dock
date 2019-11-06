@@ -845,8 +845,15 @@ bool DockController::backToDock()
 
     float rot_error_temp1, rot_error_temp2, rot_delta;
     rot_error_temp1 = left2_error1_ - left2_error2_;
-    rot_error_temp2 = left2_error1_ - 2 * left2_error2_ + left2_error3_;
-    rot_delta = kp * rot_error_temp1 + ki * left2_error1_ + kd * rot_error_temp2;
+    // rot_error_temp2 = left2_error1_ - 2 * left2_error2_ + left2_error3_;
+    // rot_delta = kp * rot_error_temp1 + ki * left2_error1_ + kd * rot_error_temp2;
+
+    left2_error3_ += left2_error1_;
+    if(left2_error3_>10.0) left2_error3_ = 3.0;
+    if(left2_error3_<-10.0) left2_error3_ = -3.0;
+
+    rot_delta = kp * left2_error1_ + ki * left2_error3_ + kd * rot_error_temp1;
+
     //ROS_DEBUG("ousp1 delta  %f  error %f %f %f sonsor %d ", rot_delta, left2_error1_, rot_error_temp1, rot_error_temp2,
     //          bw_status_->sensor_status.left_sensor2);
     // rot_error_temp1 = right2_error1_ - right2_error2_;
@@ -860,7 +867,7 @@ bool DockController::backToDock()
         rot_delta = -max_rotspeed_;
     rot_z_ = rot_delta;
     //ROS_DEBUG("ousp3 rot  %f", rot_z_);
-    left2_error3_ = left2_error2_;
+    //left2_error3_ = left2_error2_;
     left2_error2_ = left2_error1_;
     // right2_error3_ = right2_error2_;
     // right2_error2_ = right2_error1_;

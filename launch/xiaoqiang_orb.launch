@@ -8,9 +8,9 @@
     <!-- 自动充电对准过程中的最大旋转速度-->
     <param name="max_rotspeed" value="1.0"/>
     <!-- 自动充电直线运动对准阶段中的pid参数-->
-    <param name="back_dock_kp" value="0.20"/>
-    <param name="back_dock_ki" value="0.04"/>
-    <param name="back_dock_kd" value="0.0"/>
+    <param name="back_dock_kp" value="0.17"/>
+    <param name="back_dock_ki" value="1.0"/>
+    <param name="back_dock_kd" value="0.04"/>
 
     <!-- 自动充电驶入预定点阶段中的pid参数-->
     <param name="max_x_speed" value="0.30"/>
