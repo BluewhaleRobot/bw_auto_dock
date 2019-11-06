@@ -75,13 +75,16 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
 
     min_x2_ = 100.0;
 
-    min_x2_4_ = 100.0;//用来设置发散检查
-
     mTf_flag_ = false;
     tf2::toMsg(tf2::Transform::getIdentity(), global_pose_.pose);
     tf2::toMsg(tf2::Transform::getIdentity(), robot_pose_.pose);
 
     power_threshold_ = 41.0;
+
+    error_theta_last_ = 0;
+    error_theta_sum_ = 0;
+    error_x_last_ = 0;
+    error_x_sum_= 0;
 }
 
 void DockController::setPowerParam(double power_threshold)
@@ -293,6 +296,7 @@ void DockController::dealing_status()
         switch (mcharge_status_temp_)
         {
             case CHARGE_STATUS_TEMP::finding0:
+                //初始化参考点
                 ROS_DEBUG("finding0.0");
                 if (usefull_num_ == 0)
                 {
@@ -303,6 +307,11 @@ void DockController::dealing_status()
                         //选择距离更远的站点当成station3
                         ROS_DEBUG("finding0.1");
                         this->caculateStation3();
+                        //重置误差
+                        error_theta_last_ = 0;
+                        error_theta_sum_ = 0;
+                        error_x_last_ = 0;
+                        error_x_sum_= 0;
                     }
                     else
                     {
@@ -325,39 +334,16 @@ void DockController::dealing_status()
                 }
                 else
                 {
-                    if (this->rotate2Station3())
-                    {
-                        ROS_DEBUG("finding0.2");
-                        min_x2_ = 100.0;
-                        //进入直线运动finding1
-                        mcharge_status_ = CHARGE_STATUS::finding;
-                        mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding1;
-                        bw_status_->set_charge_status(mcharge_status_);
-                        usefull_num_ = 0;
-                        unusefull_num_ = 0;
-                        //停止移动
-                        current_vel.linear.x = 0;
-                        current_vel.linear.y = 0;
-                        current_vel.linear.z = 0;
-                        current_vel.angular.x = 0;
-                        current_vel.angular.y = 0;
-                        current_vel.angular.z = 0;
-                        mCmdvelPub_.publish(current_vel);
-                    }
-                }
-                break;
-            case CHARGE_STATUS_TEMP::finding1:
-                ROS_DEBUG("finding1.0");
-                //往前直线运动，探测到left_center或者right_center后记录当期位置，同时降低进入finding2
-                if (dock_position_current == DOCK_POSITION::left_center ||
-                    dock_position_current == DOCK_POSITION::right_center)
-                {
-                    mdock__referenss_position_ = dock_position_current;
-                    mPose1_ = mRobot_pose_;
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding2;
+                    ROS_DEBUG("finding0.2");
+                    min_x2_ = 100.0;
+                    //进入直线运动finding1
+                    mcharge_status_ = CHARGE_STATUS::finding;
+                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding1;
+                    bw_status_->set_charge_status(mcharge_status_);
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
-                    current_vel.linear.x = 0.1;
+                    //停止移动
+                    current_vel.linear.x = 0;
                     current_vel.linear.y = 0;
                     current_vel.linear.z = 0;
                     current_vel.angular.x = 0;
@@ -365,39 +351,17 @@ void DockController::dealing_status()
                     current_vel.angular.z = 0;
                     mCmdvelPub_.publish(current_vel);
                 }
-                else
+                break;
+            case CHARGE_STATUS_TEMP::finding1:
+                ROS_DEBUG("finding1.0");
+                //PID方式到达设定点
+                if (this->goToStation3())
                 {
-                    if (this->goToStation3())
-                    {
-                        ROS_DEBUG("finding1.1");
-                        //没有捕获
-                        mcharge_status_ = CHARGE_STATUS::finding;
-                        mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding0;
-                        bw_status_->set_charge_status(mcharge_status_);
-                        usefull_num_ = 0;
-                        unusefull_num_ = 0;
-                        //停止移动
-                        current_vel.linear.x = 0;
-                        current_vel.linear.y = 0;
-                        current_vel.linear.z = 0;
-                        current_vel.angular.x = 0;
-                        current_vel.angular.y = 0;
-                        current_vel.angular.z = 0;
-                        mCmdvelPub_.publish(current_vel);
-                    }
-                }
-                if (dock_position_current == DOCK_POSITION::back_center &&
-                    (bw_status_->sensor_status.left_sensor2 == 3 || bw_status_->sensor_status.left_sensor2 == 7) &&
-                    (bw_status_->sensor_status.right_sensor2 == 3 || bw_status_->sensor_status.right_sensor2 == 7))
-                {
-                    ROS_DEBUG("finding1.2");
-                    mPose1_ = mRobot_pose_;
-                    mPose2_ = mRobot_pose_;
-                    this->caculatePose3();
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding4;
+                    ROS_DEBUG("finding1.1");
+                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding2;
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
-                    current_vel.linear.x = 0;
+                    current_vel.linear.x = 0.0;
                     current_vel.linear.y = 0;
                     current_vel.linear.z = 0;
                     current_vel.angular.x = 0;
@@ -408,127 +372,10 @@ void DockController::dealing_status()
                 break;
             case CHARGE_STATUS_TEMP::finding2:
                 ROS_DEBUG("finding2");
-                //往前直线运动，探测不到left_center或者right_center后记录当期位置，同时进入finding3
-                if (dock_position_current != DOCK_POSITION::left_center &&
-                    dock_position_current != DOCK_POSITION::right_center)
+                //PID方式对准设定点角度
+                if (this->rotate2Station3())
                 {
-                    mPose2_ = mRobot_pose_;
-                    this->caculatePose3();
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding3;
-                    //停止前进，
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
-                else
-                {
-                    current_vel.linear.x = 0.1;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
-                if (dock_position_current == DOCK_POSITION::back_center)
-                {
-                    mPose1_ = mRobot_pose_;
-                    mPose2_ = mRobot_pose_;
-                    this->caculatePose3();
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding4;
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
-                break;
-            case CHARGE_STATUS_TEMP::finding3:
-                ROS_DEBUG("finding3");
-                //后退，直到到达目标pose3同时进入finding4
-                if (this->backToPose3())
-                {
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding4;
-                    //停止前进，
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
-                break;
-            case CHARGE_STATUS_TEMP::finding4:
-            {
-                ROS_DEBUG("finding4");
-                //原地旋转，直到出现DOCK_POSITION::back_center，进入docking1
-                static float target_theta = 0;
-                float theta;
-                geometry_msgs::Pose current_pose = mRobot_pose_;
-                tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
-                                  current_pose.orientation.w);
-                tf::Matrix3x3 m1(q1);
-                double roll, pitch, yaw;
-                m1.getRPY(roll, pitch, yaw);
-                theta = yaw;
-                static DOCK_POSITION dock_position_reference;
-                static DOCK_POSITION dock_position_last;
-                if (usefull_num_ == 0)
-                {
-                    usefull_num_++;
-                    //记录当前角度
-                    target_theta = theta;
-                    dock_position_last = dock_position_current;
-                }
-                else
-                {
-                    float theta_error = theta - target_theta;
-                    if (theta_error <= -PI_temp)
-                        theta_error += 2 * PI_temp;
-                    if (theta_error > PI_temp)
-                        theta_error -= 2 * PI_temp;
-                    if (fabs(theta_error) >= (0.9 * PI_temp))
-                    {
-                        //旋转超过162度后还是没有发现，进入finding0
-                        mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding0;
-                        usefull_num_ = 0;
-                        unusefull_num_ = 0;
-                        //停止移动
-                        current_vel.linear.x = 0;
-                        current_vel.linear.y = 0;
-                        current_vel.linear.z = 0;
-                        current_vel.angular.x = 0;
-                        current_vel.angular.y = 0;
-                        current_vel.angular.z = 0;
-                        mCmdvelPub_.publish(current_vel);
-                    }
-                }
-                // if(dock_position_current == DOCK_POSITION::back_center &&
-                // (((bw_status_->sensor_status.left_sensor2==3||bw_status_->sensor_status.left_sensor2==7) &&
-                // mdock__referenss_position_ == DOCK_POSITION::right_center
-                // )||((bw_status_->sensor_status.right_sensor2==3 ||bw_status_->sensor_status.right_sensor2==7)  &&
-                // mdock__referenss_position_ == DOCK_POSITION::left_center)) )
-                // if(((bw_status_->sensor_status.left_sensor2==3||bw_status_->sensor_status.left_sensor2==7) &&
-                // mdock__referenss_position_ == DOCK_POSITION::right_center
-                // )||((bw_status_->sensor_status.right_sensor2==3 ||bw_status_->sensor_status.right_sensor2==7)  &&
-                // mdock__referenss_position_ == DOCK_POSITION::left_center) )
-                if ( unusefull_num_ >3)
-                {
-                    ROS_DEBUG("finding4.1 %d %d %d %d %d",(int)dock_position_current,(int)dock_position_reference,(int)DOCK_POSITION::back_center,bw_status_->sensor_status.left_sensor2,bw_status_->sensor_status.right_sensor2);
-
+                    ROS_DEBUG("finding2.1");
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking1;
                     mcharge_status_ = CHARGE_STATUS::docking;
                     bw_status_->set_charge_status(mcharge_status_);
@@ -555,44 +402,7 @@ void DockController::dealing_status()
                     pub_data.data = false;
                     mlimitSpeedPub_.publish(pub_data);
                 }
-                else
-                {
-                     //过中点检测
-                    if(dock_position_current == DOCK_POSITION::back_center && unusefull_num_ ==0)
-                    {
-                      dock_position_reference = dock_position_last;
-                      unusefull_num_ ++;
-                    }
-                    if(dock_position_current != DOCK_POSITION::back_center && unusefull_num_ >0)
-                    {
-                      if(dock_position_current != dock_position_reference)
-                      {
-                        unusefull_num_ = 4;
-                      }
-                      else{
-                        unusefull_num_ =0;
-                      }
-                    }
-                    dock_position_last = dock_position_current;
-                    if (mdock__referenss_position_ == DOCK_POSITION::left_center)
-                    {
-                        //右转
-                        current_vel.angular.z = -0.3;
-                    }
-                    else
-                    {
-                        //左转
-                        current_vel.angular.z = 0.3;
-                    }
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
                 break;
-            }
             case CHARGE_STATUS_TEMP::docking1:
                 ROS_DEBUG("docking1.1");
                 // pid方式对准充电桩前进，当出现充电电压后停止，当侦测到碰上角落后也停止
@@ -663,8 +473,6 @@ void DockController::dealing_status()
                         if (usefull_num_ >= 10)
                         {
                             ROS_DEBUG("docking2.4");
-                            this->caculatePose4();
-                            min_x2_4_ = 100.0;
                             mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
                             usefull_num_ = 0;
                             unusefull_num_ = 0;
@@ -687,8 +495,6 @@ void DockController::dealing_status()
                     if(usefull_num_ > 30*3)
                     {
                       ROS_DEBUG("docking3.0");
-                      this->caculatePose4();
-                      min_x2_4_ = 100.0;
                       mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
                       usefull_num_ = 0;
                       unusefull_num_ = 0;
@@ -734,27 +540,8 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::temp1:
-                //运动到目标点4
+                //回到finding0
                 ROS_DEBUG("temp1.1 ");
-                if (this->goToPose4())
-                {
-                    ROS_DEBUG("temp1.2 ");
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp2;
-                    //停止前进，
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                }
-                break;
-            case CHARGE_STATUS_TEMP::temp2:
-            {
-                //直接进入finding0,temp1不进入，是因为旋转位置不合适，容易碰到东西
                 mcharge_status_ = CHARGE_STATUS::finding;
                 mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding0;
                 bw_status_->set_charge_status(mcharge_status_);
@@ -768,88 +555,7 @@ void DockController::dealing_status()
                 current_vel.angular.z = 0;
                 mCmdvelPub_.publish(current_vel);
                 break;
-                //旋转到正对目标点4
-                geometry_msgs::Pose current_pose = mRobot_pose_;
-
-                float x, y, theta;
-                x = current_pose.position.x;
-                y = current_pose.position.y;
-                tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
-                                  current_pose.orientation.w);
-                tf::Matrix3x3 m1(q1);
-
-                double roll, pitch, yaw;
-                m1.getRPY(roll, pitch, yaw);
-                theta = yaw;
-
-                if (usefull_num_ == 0)
-                {
-                    mPose4_[2] = atan2(mPose3_[1] - mPose4_[1], mPose3_[0] - mPose4_[0]);
-                    usefull_num_++;
-                }
-
-                if (fabs(yaw - mPose4_[2]) < 0.02)
-                {
-                    ROS_DEBUG("temp2.2 ");
-                    mcharge_status_ = CHARGE_STATUS::finding;
-                    mcharge_status_temp_ = CHARGE_STATUS_TEMP::finding0;
-                    bw_status_->set_charge_status(mcharge_status_);
-                    usefull_num_ = 0;
-                    unusefull_num_ = 0;
-                    current_vel.linear.x = 0;
-                    current_vel.linear.y = 0;
-                    current_vel.linear.z = 0;
-                    current_vel.angular.x = 0;
-                    current_vel.angular.y = 0;
-                    current_vel.angular.z = 0;
-                    mCmdvelPub_.publish(current_vel);
-                }
-                else
-                {
-                    ROS_DEBUG("temp2.1");
-                    if (mPose4_[2] > 0)
-                    {
-                        //正转
-                        current_vel.linear.x = 0;
-                        current_vel.linear.y = 0;
-                        current_vel.linear.z = 0;
-                        current_vel.angular.x = 0;
-                        current_vel.angular.y = 0;
-                        current_vel.angular.z = 0.2;
-                        mCmdvelPub_.publish(current_vel);
-                    }
-                    else
-                    {
-                        //反转
-                        current_vel.linear.x = 0;
-                        current_vel.linear.y = 0;
-                        current_vel.linear.z = 0;
-                        current_vel.angular.x = 0;
-                        current_vel.angular.y = 0;
-                        current_vel.angular.z = -0.2;
-                        mCmdvelPub_.publish(current_vel);
-                    }
-                }
-            }
-            break;
             case CHARGE_STATUS_TEMP::charging1:
-                // //触发了碰撞传感器
-                // if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
-                // {
-                //     //进入docking3
-                //     ROS_DEBUG("docking2.2");
-                //     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking3;
-                //     usefull_num_ = 0;
-                //     unusefull_num_ = 0;
-                //     //停止移动
-                //     current_vel.linear.x = 0;
-                //     current_vel.linear.y = 0;
-                //     current_vel.linear.z = 0;
-                //     current_vel.angular.x = 0;
-                //     current_vel.angular.y = 0;
-                //     current_vel.angular.z = 0;
-                //     mCmdvelPub_.publish(current_vel);
-                // }
                 if (bw_status_->sensor_status.power < 9.0)
                 {
                     //没有侦测到电压，进入temp1
@@ -862,8 +568,6 @@ void DockController::dealing_status()
                         {
                             mcmd_serial_->write(cmd_str, 6);
                         }
-                        this->caculatePose4();
-                        min_x2_4_ = 100.0;
                         mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
                         usefull_num_ = 0;
                         unusefull_num_ = 0;
@@ -962,17 +666,17 @@ void DockController::dealing_status()
     {
         if(mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged)
         {
-          //先进入temp3,前进到pose4,再转入free
-          this->caculatePose4();
-          min_x2_4_ = 100.0;
+          //先进入temp3,前进250mm,再转入free
           mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp3;
+          usefull_num_ = 0;
+          unusefull_num_ = 0;
         }
 
         if(mcharge_status_temp_ == CHARGE_STATUS_TEMP::temp3)
         {
-          //运动到目标点4
+          //前进250mm
           ROS_DEBUG("temp3.1 ");
-          if (this->goToPose4())
+          if (bw_status_->sensor_status.distance1 > 250 || usefull_num_ >= 30*5)
           {
               //转入free
               ROS_DEBUG("temp3.2 ");
@@ -988,6 +692,14 @@ void DockController::dealing_status()
           }
           else
           {
+              usefull_num_ ++;
+              current_vel.linear.x = 0.1;
+              current_vel.linear.y = 0;
+              current_vel.linear.z = 0;
+              current_vel.angular.x = 0;
+              current_vel.angular.y = 0;
+              current_vel.angular.z = 0;
+              mCmdvelPub_.publish(current_vel);
               return;
           }
         }
@@ -1197,11 +909,19 @@ float DockController::computeDockError()
     return return_value;
 }
 
-void DockController::setDockPid(double kp, double ki, double kd)
+void DockController::setDockPid(double kp, double ki, double kd, double kp_theta_set, double kd_theta_set, double ki_theta_set, double kp_x_set, double kd_x_set, double ki_x_set, double max_theta_speed, double max_x_speed)
 {
     kp_ = kp;
     ki_ = ki;
     kd_ = kd;
+    kp_theta_set_ = kp_theta_set;
+    kd_theta_set_ = kd_theta_set;
+    ki_theta_set_ = ki_theta_set;
+    kp_x_set_ = kp_x_set;
+    kd_x_set_ = kd_x_set;
+    ki_x_set_ = ki_x_set;
+    max_theta_speed_ = max_theta_speed;
+    max_x_speed_ = max_x_speed;
 }
 
 bool DockController::rotateOrigin()
@@ -1304,68 +1024,6 @@ bool DockController::rotateOrigin()
     return false;
 }
 
-void DockController::caculatePose4()
-{
-    //当前角度设为目标角度，当前位置在pose3坐标系下的x轴位置，得到目标点位置
-    geometry_msgs::Pose current_pose = mRobot_pose_;
-    float x, y, theta, x2;
-    x = current_pose.position.x;
-    y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
-                      current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
-    double roll, pitch, yaw;
-    m1.getRPY(roll, pitch, yaw);
-    theta = yaw;
-
-    mPose4_[2] = theta;
-    //转到pose3本地坐标系,得到x轴值
-    x2 = cos(mPose3_[2]) * (x - mPose3_[0]) + sin(mPose3_[2]) * (y - mPose3_[1]);
-    //转到全局坐标系
-    mPose4_[0] = mPose3_[0] + x2 * cos(mPose3_[2]);
-    mPose4_[1] = mPose3_[1] + x2 * sin(mPose3_[2]);
-}
-
-bool DockController::goToPose4()
-{
-    static float last_x2 = 0;
-    geometry_msgs::Pose current_pose = mRobot_pose_;
-    float x, y, theta, x2, y2;
-    x = current_pose.position.x;
-    y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
-                      current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
-    double roll, pitch, yaw;
-    m1.getRPY(roll, pitch, yaw);
-    theta = yaw;
-    //转到pose4本地坐标系
-    x2 = cos(mPose4_[2]) * (x - mPose4_[0]) + sin(mPose4_[2]) * (y - mPose4_[1]);
-    y2 = -sin(mPose4_[2]) * (x - mPose4_[0]) + cos(mPose4_[2]) * (y - mPose4_[1]);
-
-    if(min_x2_4_>99) last_x2 = x2;
-    if(fabs(x2)<min_x2_4_) min_x2_4_ = fabs(x2);
-
-    //ROS_ERROR("temp error3 %f %f %f ; %f %f",x,y,yaw, x2,y2);
-    //增加过零检查和发散检查
-    if (fabs(x2) <= 0.03)
-        return true;
-    if((x2*last_x2) < 0.0001) return true; //过最小值
-    if(fabs(min_x2_4_ - fabs(x2)) > 0.2) return true; //发散
-
-    last_x2 = x2;
-
-    geometry_msgs::Twist current_vel;
-    current_vel.linear.x = 0.2;
-    current_vel.linear.y = 0;
-    current_vel.linear.z = 0;
-    current_vel.angular.x = 0;
-    current_vel.angular.y = 0;
-    current_vel.angular.z = 0;
-    mCmdvelPub_.publish(current_vel);
-    return false;
-}
-
 geometry_msgs::Pose DockController::getRobotPose()
 {
     boost::mutex::scoped_lock lock(mMutex_pose);
@@ -1413,49 +1071,11 @@ void DockController::setDockPositionCaculate(CaculateDockPosition* dock_position
 
 void DockController::caculateStation3()
 {
-    //选择距离远的点
-    geometry_msgs::Pose current_pose = mRobot_pose_;
-    float x, y, theta;
-    x = current_pose.position.x;
-    y = current_pose.position.y;
-
-    float distance1, distance2;
-    distance1 = (x - mstationPose1_[0]) * (x - mstationPose1_[0]) + (y - mstationPose1_[1]) * (y - mstationPose1_[1]);
-    distance2 = (x - mstationPose2_[0]) * (x - mstationPose2_[0]) + (y - mstationPose2_[1]) * (y - mstationPose2_[1]);
-    if (distance1 > distance2  )
-    {
-        if(distance2>(0.1*0.1))
-        {//选2
-           mstationPose3_[0] = mstationPose2_[0];
-           mstationPose3_[1] = mstationPose2_[1];
-        }
-        else
-        {
-	   //选1
-           mstationPose3_[0] = mstationPose1_[0];
-            mstationPose3_[1] = mstationPose1_[1];
-        }
-    }
-    else
-    {
-        if(distance1<(0.1*0.1))
-        {//选2
-           mstationPose3_[0] = mstationPose2_[0];
-           mstationPose3_[1] = mstationPose2_[1];
-        }
-        else
-        {
-	   //选1
-           mstationPose3_[0] = mstationPose1_[0];
-            mstationPose3_[1] = mstationPose1_[1];
-        }
-    }
-    theta = atan2(mstationPose3_[1] - y, mstationPose3_[0] - x);
-
-    mstationPose3_[2] = theta;
-    //  ROS_INFO("station3 %f %f %f %f %f %f %f %f
-    //  %f",mstationPose1_[0],mstationPose1_[1],mstationPose2_[0],mstationPose2_[1],mstationPose3_[0],mstationPose3_[1],mstationPose3_[2],x,y);
-    //ROS_ERROR("temp error1 %f %f; %f %f %f",x,y, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
+  boost::mutex::scoped_lock lock(mMutex_pose);
+  mstationPose3_[0] = (mstationPose1_[0] + mstationPose2_[0])/2.0;
+  mstationPose3_[1] = (mstationPose1_[1] + mstationPose2_[1])/2.0;
+  mstationPose3_[2] = (mstationPose1_[2] + mstationPose2_[2])/2.0;
+  return;
 }
 
 bool DockController::rotate2Station3()
@@ -1525,9 +1145,10 @@ bool DockController::rotate2Station3()
 
 bool DockController::goToStation3()
 {
-    static float last_x2 = 0;
+    boost::mutex::scoped_lock lock(mMutex_pose);
+
     geometry_msgs::Pose current_pose = mRobot_pose_;
-    float x, y, theta, x2, y2;
+    float x, y, theta;
     x = current_pose.position.x;
     y = current_pose.position.y;
     tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
@@ -1536,30 +1157,76 @@ bool DockController::goToStation3()
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
-    //转到pose4本地坐标系
-    x2 = cos(mstationPose3_[2]) * (x - mstationPose3_[0]) + sin(mstationPose3_[2]) * (y - mstationPose3_[1]);
-    y2 = -sin(mstationPose3_[2]) * (x - mstationPose3_[0]) + cos(mstationPose3_[2]) * (y - mstationPose3_[1]);
 
-    if(min_x2_>99) last_x2 = x2;
-    if(fabs(x2)<min_x2_) min_x2_ = fabs(x2);
+    float dx,dy,local_x,local_y;
+    dx = mstationPose3_[0] -x;
+    dy = mstationPose3_[1] -y;
+    local_x = std::cos(theta);
+    local_y = std::sin(theta);
 
-    //ROS_ERROR("temp error3 %f %f %f ; %f %f",x,y,yaw, x2,y2);
-    //增加过零检查和发散检查
-    if (fabs(x2) <= 0.03)
-        return true;
-    if((x2*last_x2) < 0.0001) return true; //过最小值
-    if(fabs(min_x2_ - fabs(x2)) > 0.2) return true; //发散
+    float diff_distance = dx*local_x + dy*local_y;
+    bool move_back_flag = false;
+    if(diff_distance < 0 && bw_status_->sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
+    float diff_theta = mstationPose3_[0] - theta;
+    if(move_back_flag)
+    {
+      //后退情况下需要加上180或被180度减
+      if(diff_theta<0)
+      {
+        diff_theta += 3.1415926;
+      }
+      if(diff_theta>0)
+      {
+        diff_theta = 3.1415926 - diff_theta;
+      }
+    }
 
-    last_x2 = x2;
+    if(fabs(dx)<= 0.05 && fabs(dy)<= 0.05)
+    {
+      //ROS_ERROR("goToStation3 %f %f ", fabs(local_station3_pose_.point.x),fabs(local_station3_pose_.point.y) );
+      return true;
+    }
+    else
+    {
+      //ROS_ERROR("goToStation3 %f %f ", local_station3_pose_.point.x,local_station3_pose_.point.y );
+      geometry_msgs::Twist current_vel;
+      //pid 对准
+      float kp_theta = kp_theta_set_;
+      float kd_theta = kp_theta_set_*30*kd_theta_set_;
+      float ki_theta = kp_theta_set_/30/ki_theta_set_;
 
-    geometry_msgs::Twist current_vel;
-    current_vel.linear.x = 0.2;
-    current_vel.linear.y = 0;
-    current_vel.linear.z = 0;
-    current_vel.angular.x = 0;
-    current_vel.angular.y = 0;
-    current_vel.angular.z = 0;
-    mCmdvelPub_.publish(current_vel);
+      float error_temp1 = diff_theta - error_theta_last_;
+      error_theta_sum_ += diff_theta;
+      if(error_theta_sum_>3.0) error_theta_sum_ = 3.0;
+      if(error_theta_sum_<-3.0) error_theta_sum_ = -3.0;
+
+      current_vel.angular.z = kp_theta*diff_theta + kd_theta*error_temp1 + ki_theta*error_theta_sum_;
+      if(current_vel.angular.z > max_theta_speed_ ) current_vel.angular.z = max_theta_speed_;
+      if(current_vel.angular.z < -max_theta_speed_ ) current_vel.angular.z = -max_theta_speed_;
+
+      float kp_x = kp_x_set_;
+      float kd_x = kp_x_set_*30*kd_x_set_;
+      float ki_x = kp_x_set_/30/ki_x_set_;
+
+      error_temp1 = diff_distance - error_x_last_;
+      error_x_sum_ += diff_distance;
+      if(error_x_sum_>3.0) error_x_sum_ = 3.0;
+      if(error_x_sum_<-3.0) error_x_sum_ = -3.0;
+
+      current_vel.linear.x = kp_x*diff_distance + kd_x*error_temp1 + ki_x*error_x_sum_;
+      if(current_vel.linear.x > max_x_speed_ ) current_vel.linear.x = max_x_speed_;
+      if(current_vel.linear.x < -max_x_speed_ ) current_vel.linear.x = -max_x_speed_;
+
+      usefull_num_++;
+      current_vel.linear.y = 0;
+      current_vel.linear.z = 0;
+      current_vel.angular.x = 0;
+      current_vel.angular.y = 0;
+      mCmdvelPub_.publish(current_vel);
+
+      error_theta_last_ = diff_theta;
+      error_x_last_ = diff_distance;
+    }
     return false;
 }
 

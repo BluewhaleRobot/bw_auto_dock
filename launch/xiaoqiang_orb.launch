@@ -11,6 +11,17 @@
     <param name="back_dock_kp" value="0.20"/>
     <param name="back_dock_ki" value="0.04"/>
     <param name="back_dock_kd" value="0.0"/>
+
+    <!-- 自动充电驶入预定点阶段中的pid参数-->
+    <param name="max_x_speed" value="0.30"/>
+    <param name="max_theta_speed" value="0.30"/>
+    <param name="kp_theta_set" value="0.4"/>
+    <param name="kd_theta_set" value="0.8"/>
+    <param name="ki_theta_set" value="1.0"/>
+    <param name="kp_x_set" value="0.4"/>
+    <param name="kd_x_set" value="0.8"/>
+    <param name="ki_x_set" value="10.0"/>
+
     <!-- 自动充电设备串口号-->
     <param name="port" value="/dev/ttyUSB004"/>
     <!-- 全局坐标系名字-->

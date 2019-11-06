@@ -38,10 +38,11 @@ CaculateDockPosition::CaculateDockPosition(double grid_length, std::string frame
     mlocal_grid_ = new LocalGrid(0.1, grid_length / 2.0 / 0.1, frame_id);
     station_distance_ = 0.8;
 }
-bool CaculateDockPosition::getDockPosition(float (&station_pose1)[2], float (&station_pose2)[2])
+bool CaculateDockPosition::getDockPosition(float (&station_pose1)[3], float (&station_pose2)[3])
 {
     //获取充电桩参考点
     boost::mutex::scoped_lock lock(mMutex_);
+    float theta = 0;
     std::string dbfile_path = mdock_station_filename_;//std::string(std::getenv("HOME")) + std::string("/slamdb") + std::string("/") + mdock_station_filename_;
     if (!boost::filesystem::exists(dbfile_path.c_str()))
     {
@@ -56,12 +57,17 @@ bool CaculateDockPosition::getDockPosition(float (&station_pose1)[2], float (&st
             dock_station_file >> station_pose1[1];
             dock_station_file >> station_pose2[0];
             dock_station_file >> station_pose2[1];
+            dock_station_file >> theta;
+            dock_station_file >> theta;
+            dock_station_file >> theta;
         }
         else
         {
             return false;
         }
     }
+    station_pose1[2] = theta;
+    station_pose2[2] = theta;
     return true;
 }
 
@@ -110,7 +116,7 @@ void CaculateDockPosition::run()
                   if (mlocal_grid_->set_dock_position(ir_pose))
                       dock_postion_update_ = true;
                   // ROS_INFO("dock_realposition_set %d %f %f %f",num,ir_pose[0],ir_pose[1],ir_pose[2]);
-                }                
+                }
             }
         }
 

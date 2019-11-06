@@ -43,7 +43,7 @@ class CaculateDockPosition
   public:
     CaculateDockPosition(double grid_length, std::string frame_id, std::string dock_station_filename,
                          DockController* dock_controler, StatusPublisher* bw_status);
-    bool getDockPosition(float (&station_pose1)[2], float (&station_pose2)[2]);
+    bool getDockPosition(float (&station_pose1)[3], float (&station_pose2)[3]);
     void run();
     void updateMapsaveFlag(const std_msgs::Bool& currentFlag);
     void saveDockPositon();

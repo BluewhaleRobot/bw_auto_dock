@@ -35,13 +35,13 @@ def update_status(status):
     if status.chargeStatus == 1 and CHARGING_LAST_STATUS != 1 :
         CHARGING_TIME = now
 
-    if status.chargeStatus == 1 and CHARGING_LAST_STATUS == 1:
-        if now - CHARGING_TIME >= CHARGING_OFF_TIME:
-            #已经持续充电指定时间，需要关机以加速充电
-            AUDIO_PUB.publish("系统10秒后进入关机省电模式")
-            time.sleep(10)
-            commands.getstatusoutput(
-                'sudo shutdown -h now')
+    # if status.chargeStatus == 1 and CHARGING_LAST_STATUS == 1:
+    #     if now - CHARGING_TIME >= CHARGING_OFF_TIME:
+    #         #已经持续充电指定时间，需要关机以加速充电
+    #         AUDIO_PUB.publish("系统10秒后进入关机省电模式")
+    #         time.sleep(10)
+    #         commands.getstatusoutput(
+    #             'sudo shutdown -h now')
 
     CHARGING_LAST_STATUS = status.chargeStatus
     # 电压可能存在跳动的情况，取平均滤波,取5s记录

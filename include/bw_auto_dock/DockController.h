@@ -73,10 +73,8 @@ class DockController
     bool backToPose3();
     bool backToDock();
     float computeDockError();
-    void setDockPid(double kp, double ki, double kd);
+    void setDockPid(double kp, double ki, double kd, double kp_theta_set, double kd_theta_set, double ki_theta_set, double kp_x_set, double kd_x_set, double ki_x_set, double max_theta_speed, double max_x_speed);
     bool rotateOrigin();
-    void caculatePose4();
-    bool goToPose4();
     geometry_msgs::Pose getRobotPose();
     bool getRobotPose(float (&robot_pose)[3]);
     bool getIRPose(float (&robot_pose)[3]);
@@ -127,15 +125,27 @@ class DockController
     float kp_;
     float ki_;
     float kd_;
+    float kp_theta_set_;
+    float kd_theta_set_;
+    float ki_theta_set_;
+    float kp_x_set_;
+    float kd_x_set_;
+    float ki_x_set_;
+    float max_theta_speed_;
+    float max_x_speed_;
+
+    float error_theta_last_;
+    float error_theta_sum_;
+    float error_x_last_;
+    float error_x_sum_;
 
     float current_average_;
     bool mPose_flag_;
-    float mstationPose1_[2];
-    float mstationPose2_[2];
+    float mstationPose1_[3];
+    float mstationPose2_[3];
     float* mstationPose3_;
 
     float min_x2_;
-    float min_x2_4_;
     bool barDetectFlag_;
 
     tf2_ros::Buffer tf2_buffer_;

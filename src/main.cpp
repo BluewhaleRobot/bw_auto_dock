@@ -92,8 +92,22 @@ int main(int argc, char** argv)
     double power_threshold;
     ros::param::param<double>("~power_threshold", power_threshold, 41.0);
 
+    double kp_theta_set, kd_theta_set, ki_theta_set;
+    ros::param::param<double>("~kp_theta_set", kp_theta_set, 0.4);
+    ros::param::param<double>("~kd_theta_set", kd_theta_set, 0.8);
+    ros::param::param<double>("~ki_theta_set", ki_theta_set, 1.0);
+
+    double kp_x_set, kd_x_set, ki_x_set;
+    ros::param::param<double>("~kp_x_set", kp_x_set, 0.4);
+    ros::param::param<double>("~kd_x_set", kd_x_set, 0.8);
+    ros::param::param<double>("~ki_x_set", ki_x_set, 10.0);
+
+    double max_x_speed, max_theta_speed;
+    ros::param::param<double>("~max_x_speed", max_x_speed, 0.3);
+    ros::param::param<double>("~max_theta_speed", max_theta_speed, 0.3);
+
     bw_auto_dock::StatusPublisher bw_status(crash_distance,power_scale);
-    
+
     ros::NodeHandle mNH;
     ros::Publisher audio_pub = mNH.advertise<std_msgs::String>("/xiaoqiang_tts/text", 1, true);
     try
@@ -104,7 +118,7 @@ int main(int argc, char** argv)
 
         bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance,barDetectFlag,global_frame_id, &bw_status, &serial);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
-        bw_controler.setDockPid(kp, ki, kd);
+        bw_controler.setDockPid(kp, ki, kd, kp_theta_set, kd_theta_set, ki_theta_set,kp_x_set, kd_x_set, ki_x_set, max_theta_speed, max_x_speed);
         bw_controler.setPowerParam(power_threshold);
         //计算充电桩位置
         bw_auto_dock::CaculateDockPosition caculate_DockPosition(grid_length, global_frame_id, station_filename,
