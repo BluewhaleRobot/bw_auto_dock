@@ -11,6 +11,7 @@ from galileo_serial_server.msg import GalileoStatus, GalileoNativeCmds
 from threading import _start_new_thread
 from std_msgs.msg import String
 import os
+from datetime import datetime
 
 CHARGING_TIME = 0
 CHARGING_OFF_TIME = 30*60*1000 #30分钟后自动关机
@@ -27,21 +28,27 @@ LAST_NAV_TIME = int(time.time() * 1000)
 
 POWER_RECORDS = []
 
+SET_HOUR1 = 23
+SET_MINUTE1 = 00
+SET_HOUR2 = 8
+SET_MINUTE2 = 00
+FREE_TIME = 0
+
 def update_status(status):
     global AUDIO_PUB, GALILEO_PUB, CHARGE_GOAL, LAST_CHARGE_CMD_TIME, POWER_LOW, CURRENT_STATUS, POWER_RECORDS, CHARGING_TIME, CHARGING_OFF_TIME, CHARGING_LAST_STATUS
-    global LAST_NAV_TIME
+    global LAST_NAV_TIME, SET_HOUR1, SET_MINUTE1,FREE_TIME, SET_HOUR2,SET_MINUTE2
     now = int(time.time() * 1000)
     CURRENT_STATUS = status
     if status.chargeStatus == 1 and CHARGING_LAST_STATUS != 1 :
         CHARGING_TIME = now
 
-    if status.chargeStatus == 1 and CHARGING_LAST_STATUS == 1:
-        if now - CHARGING_TIME >= CHARGING_OFF_TIME:
-            #已经持续充电指定时间，需要关机以加速充电
-            AUDIO_PUB.publish("系统10秒后进入关机省电模式")
-            time.sleep(10)
-            commands.getstatusoutput(
-                'sudo shutdown -h now')
+    # if status.chargeStatus == 1 and CHARGING_LAST_STATUS == 1:
+    #     if now - CHARGING_TIME >= CHARGING_OFF_TIME:
+    #         #已经持续充电指定时间，需要关机以加速充电
+    #         AUDIO_PUB.publish("系统10秒后进入关机省电模式")
+    #         time.sleep(10)
+    #         commands.getstatusoutput(
+    #             'sudo shutdown -h now')
 
     CHARGING_LAST_STATUS = status.chargeStatus
     # 电压可能存在跳动的情况，取平均滤波,取5s记录
@@ -88,7 +95,19 @@ def update_status(status):
     if sum(POWER_RECORDS) / len(POWER_RECORDS) < POWER_LOW and sum(POWER_RECORDS) / len(POWER_RECORDS) > POWER_LOW / 2:
         LAST_CHARGE_CMD_TIME = now
         _start_new_thread(charge_task, ())
+        return
 
+    time_now = datetime.now().hour*60 + datetime.now().minute
+    time_set1 = SET_HOUR1*60 + SET_MINUTE1
+    time_set2 = SET_HOUR2*60 + SET_MINUTE2
+
+    if status.targetStatus != 0:
+        FREE_TIME = now
+
+    if now - FREE_TIME > 30 * 60 * 1000 and ( time_now > time_set1 or time_now < time_set2):
+        AUDIO_PUB.publish("进入定时充电模式！")
+        LAST_CHARGE_CMD_TIME = now
+        _start_new_thread(charge_task, ())
 
 def charge_task():
     time.sleep(10)
