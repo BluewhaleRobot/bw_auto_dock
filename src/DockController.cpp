@@ -408,6 +408,7 @@ void DockController::dealing_status()
                 // pid方式对准充电桩前进，当出现充电电压后停止，当侦测到碰上角落后也停止
                 if (this->backToDock())
                 {
+                    ROS_DEBUG("docking1.2");
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking2;
                     //停止移动
                     current_vel.linear.x = 0;
@@ -426,6 +427,7 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::docking2:
+                ROS_DEBUG("docking2.0");
                 if (bw_status_->sensor_status.power > 9.0)
                 {
                     //已经侦测到电压，进入充电状态
@@ -801,11 +803,17 @@ bool DockController::backToDock()
     theta = yaw;
     //如果侦测到电压，停止
     if (bw_status_->sensor_status.power > 9.0)
-        return true;
+    {
+      return true;
+    }
+
 
     //如果侦测到已进入死角，停止
     if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
-        return true;
+    {
+      return true;
+    }
+
 
     if ((bw_status_->sensor_status.left_sensor2 == 0) && (bw_status_->sensor_status.right_sensor2 == 0))
     {
@@ -1071,7 +1079,6 @@ void DockController::setDockPositionCaculate(CaculateDockPosition* dock_position
 
 void DockController::caculateStation3()
 {
-  boost::mutex::scoped_lock lock(mMutex_pose);
   mstationPose3_[0] = (mstationPose1_[0] + mstationPose2_[0])/2.0;
   mstationPose3_[1] = (mstationPose1_[1] + mstationPose2_[1])/2.0;
   mstationPose3_[2] = (mstationPose1_[2] + mstationPose2_[2])/2.0;
@@ -1145,7 +1152,6 @@ bool DockController::rotate2Station3()
 
 bool DockController::goToStation3()
 {
-    boost::mutex::scoped_lock lock(mMutex_pose);
 
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta;
@@ -1165,30 +1171,32 @@ bool DockController::goToStation3()
     local_y = std::sin(theta);
 
     float diff_distance = dx*local_x + dy*local_y;
+
     bool move_back_flag = false;
     if(diff_distance < 0 && bw_status_->sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
-    float diff_theta = mstationPose3_[0] - theta;
-    if(move_back_flag)
-    {
-      //后退情况下需要加上180或被180度减
-      if(diff_theta<0)
-      {
-        diff_theta += 3.1415926;
-      }
-      if(diff_theta>0)
-      {
-        diff_theta = 3.1415926 - diff_theta;
-      }
-    }
 
     if(fabs(dx)<= 0.05 && fabs(dy)<= 0.05)
     {
-      //ROS_ERROR("goToStation3 %f %f ", fabs(local_station3_pose_.point.x),fabs(local_station3_pose_.point.y) );
       return true;
     }
     else
     {
-      //ROS_ERROR("goToStation3 %f %f ", local_station3_pose_.point.x,local_station3_pose_.point.y );
+      float diff_theta = std::atan2(dy,dx) - theta;
+      if(move_back_flag)
+      {
+        //后退情况下需要加上180或被180度减
+        if(diff_theta<0)
+        {
+          diff_theta += 3.1415926;
+        }
+        else{
+          if(diff_theta>0)
+          {
+            diff_theta = 3.1415926 - diff_theta;
+          }
+        }
+      }
+
       geometry_msgs::Twist current_vel;
       //pid 对准
       float kp_theta = kp_theta_set_;
@@ -1216,7 +1224,6 @@ bool DockController::goToStation3()
       current_vel.linear.x = kp_x*diff_distance + kd_x*error_temp1 + ki_x*error_x_sum_;
       if(current_vel.linear.x > max_x_speed_ ) current_vel.linear.x = max_x_speed_;
       if(current_vel.linear.x < -max_x_speed_ ) current_vel.linear.x = -max_x_speed_;
-
       usefull_num_++;
       current_vel.linear.y = 0;
       current_vel.linear.z = 0;
