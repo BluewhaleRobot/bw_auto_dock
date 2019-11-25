@@ -139,7 +139,7 @@ int main(int argc, char** argv)
                 break;
             }
             bw_status.Refresh();  //定时发布状态
-            bw_controler.dealing_status();
+            bw_controler.dealing_status(false);
             r.sleep();
         }
 
