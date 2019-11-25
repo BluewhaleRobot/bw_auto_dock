@@ -104,7 +104,8 @@ class StatusPublisher
     void set_charge_status(CHARGE_STATUS charge_status);
     CHARGE_STATUS get_charge_status();
     UPLOAD_STATUS sensor_status;
-
+    float get_battery_power();
+    UPLOAD_STATUS get_sensor_status();
   private:
     DOCK_POSITION mdock_position_;
     CHARGE_STATUS mcharge_status_;

@@ -37,6 +37,10 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Transform.h>
 #include "galileo_serial_server/GalileoStatus.h"
+#include <actionlib/server/simple_action_server.h>
+#include <galileo_msg/AutoChargeAction.h>
+#include "bw_auto_dock/Charge.h"
+#include "bw_auto_dock/StopCharge.h"
 
 namespace bw_auto_dock
 {
@@ -66,7 +70,7 @@ class DockController
     DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,int barDetectFlag,std::string global_frame, StatusPublisher* bw_status,
                   CallbackAsyncSerial* cmd_serial);
     void run();
-    void dealing_status();
+    void dealing_status(bool action_call_flag);
     void updateOdom(const nav_msgs::Odometry::ConstPtr& msg);
     void updateChargeFlag(const std_msgs::Bool& currentFlag);
     void caculatePose3();
@@ -84,6 +88,10 @@ class DockController
     void caculateStation3();
     void setPowerParam(double power_threshold);
     void UpdateNavStatus(const galileo_serial_server::GalileoStatus& current_receive_status);
+    void resetState();
+    void executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal);
+    bool ChargeService(bw_auto_dock::Charge::Request &req, bw_auto_dock::Charge::Response &resp);
+    bool StopChargeService(bw_auto_dock::StopCharge::Request &req, bw_auto_dock::StopCharge::Response &resp);
   private:
     CallbackAsyncSerial* mcmd_serial_;
     CaculateDockPosition* mdock_position_caculate_;
@@ -108,6 +116,7 @@ class DockController
     ros::Publisher mCmdvelPub_;
     ros::Publisher mbarDetectPub_;
     ros::Publisher mlimitSpeedPub_;
+    ros::Publisher action_goal_pub_;
 
     boost::mutex mMutex_charge;
     boost::mutex mMutex_pose;
@@ -157,6 +166,15 @@ class DockController
     bool mTf_flag_;
     double power_threshold_;
     galileo_serial_server::GalileoStatus galileoStatus_;
+
+    ros::NodeHandle nh_;
+    actionlib::SimpleActionServer<galileo_msg::AutoChargeAction> as_; // NodeHandle instance must be created before this line. Otherwise strange error occurs.
+    galileo_msg::AutoChargeFeedback feedback_;
+    galileo_msg::AutoChargeResult result_;
+    galileo_msg::AutoChargeGoal current_goal_;
+
+    ros::ServiceServer charge_srv_;
+    ros::ServiceServer stop_charge_srv_;
 };
 
 }  // namespace bw_auto_dock

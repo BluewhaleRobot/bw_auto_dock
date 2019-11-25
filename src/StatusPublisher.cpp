@@ -412,4 +412,27 @@ CHARGE_STATUS StatusPublisher::get_charge_status()
     boost::mutex::scoped_lock lock(mMutex_charge);
     return mcharge_status_;
 }
+
+float StatusPublisher::get_battery_power()
+{
+    static float last_power =0;
+    boost::mutex::scoped_lock lock(mMutex_sensor);
+    if(last_power<9 &&std::fabs(last_power-sensor_status.battery)<0.3)
+    {
+      last_power = sensor_status.battery;
+    }
+    else
+    {
+      return last_power;
+    }
+
+    return sensor_status.battery;
+}
+
+UPLOAD_STATUS StatusPublisher::get_sensor_status()
+{
+    boost::mutex::scoped_lock lock(mMutex_sensor);
+    return sensor_status;
+}
+
 }  // namespace bw_auto_dock

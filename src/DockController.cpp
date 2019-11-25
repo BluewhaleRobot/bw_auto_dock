@@ -34,7 +34,7 @@
 namespace bw_auto_dock
 {
 DockController::DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance, int barDetectFlag,std::string global_frame,
-                             StatusPublisher* bw_status, CallbackAsyncSerial* cmd_serial):tf2_(tf2_buffer_),  global_frame_(global_frame)
+                             StatusPublisher* bw_status, CallbackAsyncSerial* cmd_serial):as_(nh_, std::string("/bw_auto_dock/auto_charge"), boost::bind(&DockController::executeCB, this, _1), false),tf2_(tf2_buffer_),  global_frame_(global_frame)
 {
     if(barDetectFlag==1)
     {
@@ -85,6 +85,132 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
     error_theta_sum_ = 0;
     error_x_last_ = 0;
     error_x_sum_= 0;
+    as_.start();
+}
+
+void DockController::resetState()
+{
+  mcharge_status_ == CHARGE_STATUS::freed;
+  usefull_num_ = 0;
+  unusefull_num_ = 0;
+  mcurrentChargeFlag_ = true;
+  //设置避障开关
+  std_msgs::Bool pub_data;
+  pub_data.data = false;
+  if(!barDetectFlag_) mbarDetectPub_.publish(pub_data);
+}
+void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
+{
+    ROS_DEBUG("oups1");
+    ros::Rate r(30);
+    bool success = true;
+
+    feedback_.status = std::string("freed");
+    result_.result = true;
+
+    current_goal_.x = goal->x;
+    current_goal_.y = goal->y;
+    current_goal_.angle = goal->angle;
+    current_goal_.method = goal->method;
+    current_goal_.use_local = goal->use_local;
+
+    {
+        boost::mutex::scoped_lock lock(mMutex_pose);
+        if(!mPose_flag_)
+        {
+            ROS_DEBUG("oups2");
+            as_.setAborted(galileo_msg::AutoChargeResult(), "Aborting on the goal because pose not ready");
+            success = false;
+            return;
+        }
+    }
+
+    ROS_DEBUG("oups3");
+    this->resetState();
+
+    ros::NodeHandle n;
+    while(n.ok())
+    {
+        if(as_.isPreemptRequested())
+        {
+            if(as_.isNewGoalAvailable())
+            {
+                //if we're active and a new goal is available, we'll accept it, but we won't shut anything down
+                current_goal_ = *as_.acceptNewGoal();
+                this->resetState();
+            }
+            else
+            {
+                as_.setPreempted();
+                success = false;
+                break;
+            }
+        }
+        ROS_DEBUG("oups4");
+        dealing_status(true);
+
+        if(!mcurrentChargeFlag_ && mcharge_status_ != CHARGE_STATUS::freed)
+        {
+            ROS_DEBUG("oups5");
+            success = false;
+            break;
+        }
+        if(!mcurrentChargeFlag_ || mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged)
+        {
+            ROS_DEBUG("oups7");
+            break;
+        }
+        switch (mcharge_status_temp_) {
+          case CHARGE_STATUS_TEMP::freed:
+            feedback_.status = "freed";
+            break;
+          case CHARGE_STATUS_TEMP::finding0:
+            feedback_.status = "finding0";
+            break;
+          case CHARGE_STATUS_TEMP::finding1:
+            feedback_.status = "finding1";
+            break;
+          case CHARGE_STATUS_TEMP::docking1:
+            feedback_.status = "docking1";
+            break;
+          case CHARGE_STATUS_TEMP::docking2:
+            feedback_.status = "docking2";
+            break;
+          case CHARGE_STATUS_TEMP::docking3:
+            feedback_.status = "docking3";
+            break;
+          case CHARGE_STATUS_TEMP::temp1:
+            feedback_.status = "temp1";
+            break;
+          case CHARGE_STATUS_TEMP::temp3:
+            feedback_.status = "temp3";
+            break;
+          case CHARGE_STATUS_TEMP::charging1:
+            feedback_.status = "charging1";
+            break;
+          case CHARGE_STATUS_TEMP::charged1:
+            feedback_.status = "charged1";
+            break;
+        }
+        as_.publishFeedback(feedback_);
+        r.sleep();
+    }
+
+    ROS_DEBUG("oups8");
+    if(success)
+    {
+        ROS_DEBUG("oups9");
+        as_.setSucceeded(result_);
+    }
+    geometry_msgs::Twist current_vel;
+    current_vel.linear.x = 0;
+    current_vel.linear.y = 0;
+    current_vel.linear.z = 0;
+    current_vel.angular.x = 0;
+    current_vel.angular.y = 0;
+    current_vel.angular.z = 0;
+    mCmdvelPub_.publish(current_vel);
+    return;
 }
 
 void DockController::setPowerParam(double power_threshold)
@@ -98,14 +224,63 @@ void DockController::run()
     mCmdvelPub_ = nodeHandler.advertise<geometry_msgs::Twist>("/cmd_vel", 1, true);
     mbarDetectPub_ = nodeHandler.advertise<std_msgs::Bool>("/barDetectFlag", 1, true);
     mlimitSpeedPub_ = nodeHandler.advertise<std_msgs::Bool>("/limitSpeedFlag", 1, true);
+
+    action_goal_pub_ = nodeHandler.advertise<galileo_msg::AutoChargeActionGoal>("/bw_auto_dock/auto_charge/goal", 1);
+
     ros::Subscriber sub1 = nodeHandler.subscribe("/bw_auto_dock/EnableCharge", 1, &DockController::updateChargeFlag, this);
     ros::Subscriber sub2 = nodeHandler.subscribe("/odom", 1, &DockController::updateOdom, this);
     ros::Subscriber sub3 = nodeHandler.subscribe("/galileo/status", 1, &DockController::UpdateNavStatus, this);
+
+    charge_srv_ = nodeHandler.advertiseService("/bw_auto_dock/charge", &DockController::ChargeService, this);
+    stop_charge_srv_ = nodeHandler.advertiseService("/bw_auto_dock/stop_charge", &DockController::StopChargeService, this);
+
     ros::spin();
+}
+
+bool DockController::ChargeService(bw_auto_dock::Charge::Request &req, bw_auto_dock::Charge::Response &resp)
+{
+  boost::mutex::scoped_lock lock(mMutex_charge);
+  if(as_.isActive()) as_.setPreempted();
+  //下发充电开关闭命令
+  char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+  if (NULL != mcmd_serial_)
+  {
+      mcmd_serial_->write(cmd_str, 6);
+  }
+  //发布对应action
+  galileo_msg::AutoChargeActionGoal action_goal;
+  action_goal.header.stamp = ros::Time::now();
+  action_goal.goal.use_local = false;
+  action_goal.goal.method = 0;
+  action_goal.goal.x = req.x;
+  action_goal.goal.y = req.y;
+  action_goal.goal.angle = req.theta;
+  action_goal_pub_.publish(action_goal);
+
+  resp.result = true;
+  return true;
+}
+
+bool DockController::StopChargeService(bw_auto_dock::StopCharge::Request &req, bw_auto_dock::StopCharge::Response &resp)
+{
+  boost::mutex::scoped_lock lock(mMutex_charge);
+  if(as_.isActive()) as_.setPreempted();
+  mcurrentChargeFlag_ = false;
+  //下发充电开关闭命令
+  char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+  if (NULL != mcmd_serial_)
+  {
+      mcmd_serial_->write(cmd_str, 6);
+  }
+
+  resp.result = true;
+  return true;
 }
 
 void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus& current_receive_status)
 {
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
+
     //在空闲情况下如果超声波测量值小于250毫米，需要前进脱离障碍物,最多运行10秒时间
     static ros::WallTime free_time =ros::WallTime::now();
     static bool need_stop = false;
@@ -129,9 +304,9 @@ void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus&
 
     free_diff = ros::WallTime::now() - free_time;
 
-    if(free_diff.toSec()>60 && free_diff.toSec()<60+10)
+    if(free_diff.toSec()>60 && free_diff.toSec()<60+5)
     {
-      if(bw_status_->sensor_status.distance1 <= 250 )
+      if(sensor_status.distance1 <= 250 )
       {
         need_stop = true;
         stop_num = 0;
@@ -167,31 +342,25 @@ void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus&
 void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
 {
     boost::mutex::scoped_lock lock(mMutex_charge);
+    if(as_.isActive()) as_.setPreempted();
     mcurrentChargeFlag_ = currentFlag.data;
-    usefull_num_ = 0;
-    unusefull_num_ = 0;
-    if (mcurrentChargeFlag_)
-    {
-        //关闭红外避障
-        std_msgs::Bool pub_data;
-        pub_data.data = false;
-        if(!barDetectFlag_) mbarDetectPub_.publish(pub_data);
-        //开启最小速度限制
-        pub_data.data = true;
-        mlimitSpeedPub_.publish(pub_data);
-    }
-    else
-    {
-      //开启最小速度限制
-      std_msgs::Bool pub_data;
-      pub_data.data = true;
-      mlimitSpeedPub_.publish(pub_data);
-    }
     //下发充电开关闭命令
     char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
     if (NULL != mcmd_serial_)
     {
         mcmd_serial_->write(cmd_str, 6);
+    }
+    //发布对应action
+    if(mcurrentChargeFlag_)
+    {
+      galileo_msg::AutoChargeActionGoal action_goal;
+      action_goal.header.stamp = ros::Time::now();
+      action_goal.goal.use_local = true;
+      action_goal.goal.method = 0;
+      action_goal.goal.x = 0;
+      action_goal.goal.y = 0;
+      action_goal.goal.angle = 0;
+      action_goal_pub_.publish(action_goal);
     }
 }
 
@@ -240,10 +409,16 @@ void DockController::updateOdom(const nav_msgs::Odometry::ConstPtr& msg)
     }
 }
 
-void DockController::dealing_status()
+void DockController::dealing_status(bool action_call_flag)
 {
     boost::mutex::scoped_lock lock1(mMutex_charge);
     boost::mutex::scoped_lock lock2(mMutex_pose);
+
+    if(as_.isActive() && !action_call_flag){
+      return;
+    }
+
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
     geometry_msgs::Twist current_vel;
     if (!mPose_flag_)
     {
@@ -265,7 +440,7 @@ void DockController::dealing_status()
     {
         if (mcharge_status_ == CHARGE_STATUS::freed)
         {
-            if (bw_status_->sensor_status.power > 9.0)
+            if (sensor_status.power > 9.0 || current_goal_.method == 1)
             {
                 //已经侦测到电压，进入充电状态
                 mcharge_status_temp_ = CHARGE_STATUS_TEMP::charging1;
@@ -302,35 +477,50 @@ void DockController::dealing_status()
                 {
                     //根据充电桩位置,计算两个移动参考点
                     usefull_num_++;
-                    if (mdock_position_caculate_->getDockPosition(mstationPose1_, mstationPose2_))
+                    if(current_goal_.use_local)
                     {
-                        //选择距离更远的站点当成station3
-                        ROS_DEBUG("finding0.1");
-                        this->caculateStation3();
-                        //重置误差
-                        error_theta_last_ = 0;
-                        error_theta_sum_ = 0;
-                        error_x_last_ = 0;
-                        error_x_sum_= 0;
+                      if (mdock_position_caculate_->getDockPosition(mstationPose1_, mstationPose2_))
+                      {
+                          //选择距离更远的站点当成station3
+                          ROS_DEBUG("finding0.1");
+                          this->caculateStation3();
+                          //重置误差
+                          error_theta_last_ = 0;
+                          error_theta_sum_ = 0;
+                          error_x_last_ = 0;
+                          error_x_sum_= 0;
+                      }
+                      else
+                      {
+                          // error,没有设置充电桩位置
+                          ROS_ERROR("Can not get dock station position!");
+                          mcharge_status_ = CHARGE_STATUS::freed;
+                          bw_status_->set_charge_status(mcharge_status_);
+                          usefull_num_ = 0;
+                          unusefull_num_ = 0;
+                          mcurrentChargeFlag_ = false;
+                          //停止移动
+                          current_vel.linear.x = 0;
+                          current_vel.linear.y = 0;
+                          current_vel.linear.z = 0;
+                          current_vel.angular.x = 0;
+                          current_vel.angular.y = 0;
+                          current_vel.angular.z = 0;
+                          mCmdvelPub_.publish(current_vel);
+                      }
                     }
                     else
                     {
-                        // error,没有设置充电桩位置
-                        ROS_ERROR("Can not get dock station position!");
-                        mcharge_status_ = CHARGE_STATUS::freed;
-                        bw_status_->set_charge_status(mcharge_status_);
-                        usefull_num_ = 0;
-                        unusefull_num_ = 0;
-                        mcurrentChargeFlag_ = false;
-                        //停止移动
-                        current_vel.linear.x = 0;
-                        current_vel.linear.y = 0;
-                        current_vel.linear.z = 0;
-                        current_vel.angular.x = 0;
-                        current_vel.angular.y = 0;
-                        current_vel.angular.z = 0;
-                        mCmdvelPub_.publish(current_vel);
+                      mstationPose3_[0] = current_goal_.x;
+                      mstationPose3_[1] = current_goal_.y;
+                      mstationPose3_[2] = current_goal_.angle;
+                      //重置误差
+                      error_theta_last_ = 0;
+                      error_theta_sum_ = 0;
+                      error_x_last_ = 0;
+                      error_x_sum_= 0;
                     }
+
                 }
                 else
                 {
@@ -427,11 +617,10 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::docking2:
-                ROS_DEBUG("docking2.0");
-                if (bw_status_->sensor_status.power > 9.0)
+                if (sensor_status.power > 9.0)
                 {
                     //已经侦测到电压，进入充电状态
-                    ROS_DEBUG("docking2.1 %f", bw_status_->sensor_status.power);
+                    ROS_DEBUG("docking2.1 %f", sensor_status.power);
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::charging1;
                     current_average_ = 1.0;
                     mcharge_status_ = CHARGE_STATUS::charging;
@@ -450,7 +639,7 @@ void DockController::dealing_status()
                 else
                 {
                     //触发了碰撞传感器
-                    if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
+                    if (sensor_status.distance1 <= this->crash_distance_ && sensor_status.distance1>0.1)
                     {
                         //进入docking3
                         ROS_DEBUG("docking2.2");
@@ -492,7 +681,7 @@ void DockController::dealing_status()
                 break;
             case CHARGE_STATUS_TEMP::docking3:
                 //往前移动，直到不会触发碰撞,或者已经移动30×3次
-                if ((bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1 )||usefull_num_ > 30*3 ||bw_status_->sensor_status.power > 9.0)
+                if ((sensor_status.distance1 > this->crash_distance_ && sensor_status.distance1>0.1 )||usefull_num_ > 30*3 ||sensor_status.power > 9.0)
                 {
                     if(usefull_num_ > 30*3)
                     {
@@ -558,7 +747,7 @@ void DockController::dealing_status()
                 mCmdvelPub_.publish(current_vel);
                 break;
             case CHARGE_STATUS_TEMP::charging1:
-                if (bw_status_->sensor_status.power < 9.0)
+                if (sensor_status.power < 9.0 && current_goal_.method == 0)
                 {
                     //没有侦测到电压，进入temp1
                     usefull_num_++;
@@ -596,8 +785,8 @@ void DockController::dealing_status()
                             mcmd_serial_->write(cmd_str, 6);
                         }
                         //根据充电电流，判断是否已经充满
-                        current_average_ = current_average_ * 0.99 + bw_status_->sensor_status.current * 0.01;
-                        if ((current_average_) < 0.1 || bw_status_->sensor_status.battery > power_threshold_)
+                        current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
+                        if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             //进入充满状态
                             //下发充满显示状态使能命令，绿灯
@@ -633,7 +822,7 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::charged1:
-                if (usefull_num_ > 18000 || bw_status_->sensor_status.battery > power_threshold_)
+                if (usefull_num_ > 18000 || bw_status_->get_battery_power() > power_threshold_)
                 {
                     // 10分钟后转成freed
                     // //进入free显示状态，下发充电开关闭命令，关闭灯
@@ -678,7 +867,7 @@ void DockController::dealing_status()
         {
           //前进250mm
           ROS_DEBUG("temp3.1 ");
-          if (bw_status_->sensor_status.distance1 > 250 || usefull_num_ >= 30*5)
+          if (sensor_status.distance1 > 250 || usefull_num_ >= 30*5)
           {
               //转入free
               ROS_DEBUG("temp3.2 ");
@@ -716,7 +905,7 @@ void DockController::dealing_status()
             current_vel.angular.z = 0;
             mCmdvelPub_.publish(current_vel);
         }
-        if (bw_status_->sensor_status.power > 9.0)
+        if (sensor_status.power > 9.0)
         {
           //下发充电开关闭命令
           char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
@@ -791,6 +980,7 @@ bool DockController::backToPose3()
 
 bool DockController::backToDock()
 {
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta;
     x = current_pose.position.x;
@@ -802,20 +992,14 @@ bool DockController::backToDock()
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
     //如果侦测到电压，停止
-    if (bw_status_->sensor_status.power > 9.0)
-    {
-      return true;
-    }
-
+    if (sensor_status.power > 9.0)
+        return true;
 
     //如果侦测到已进入死角，停止
-    if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
-    {
-      return true;
-    }
+    if (sensor_status.distance1 <= this->crash_distance_ && sensor_status.distance1>0.1)
+        return true;
 
-
-    if ((bw_status_->sensor_status.left_sensor2 == 0) && (bw_status_->sensor_status.right_sensor2 == 0))
+    if ((sensor_status.left_sensor2 == 0) && (sensor_status.right_sensor2 == 0))
     {
         usefull_num_++;
         unusefull_num_ = 0;
@@ -878,8 +1062,10 @@ bool DockController::backToDock()
 
 float DockController::computeDockError()
 {
-    int l2 = bw_status_->sensor_status.left_sensor2;
-    int r2 = bw_status_->sensor_status.right_sensor2;
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
+
+    int l2 = sensor_status.left_sensor2;
+    int r2 = sensor_status.right_sensor2;
     float return_value = 0.0;
     if (l2 == 0)
     {
@@ -1044,6 +1230,7 @@ geometry_msgs::Pose DockController::getRobotPose()
     boost::mutex::scoped_lock lock(mMutex_pose);
     return mRobot_pose_;
 }
+
 bool DockController::getRobotPose(float (&robot_pose)[3])
 {
     boost::mutex::scoped_lock lock(mMutex_pose);
@@ -1160,6 +1347,7 @@ bool DockController::rotate2Station3()
 bool DockController::goToStation3()
 {
 
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta;
     x = current_pose.position.x;
@@ -1180,7 +1368,20 @@ bool DockController::goToStation3()
     float diff_distance = dx*local_x + dy*local_y;
 
     bool move_back_flag = false;
-    if(diff_distance < 0 && bw_status_->sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
+    if(diff_distance < 0 && sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
+    float diff_theta = mstationPose3_[0] - theta;
+    if(move_back_flag)
+    {
+      //后退情况下需要加上180或被180度减
+      if(diff_theta<0)
+      {
+        diff_theta += 3.1415926;
+      }
+      if(diff_theta>0)
+      {
+        diff_theta = 3.1415926 - diff_theta;
+      }
+    }
 
     if(fabs(dx)<= 0.05 && fabs(dy)<= 0.05)
     {
