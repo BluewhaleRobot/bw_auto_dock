@@ -134,6 +134,7 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
           current_vel.angular.y = 0;
           current_vel.angular.z = 0;
           mCmdvelPub_.publish(current_vel);
+          as_.setSucceeded(result_);
           return;
         }
     }
@@ -181,6 +182,7 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
                       current_vel.angular.y = 0;
                       current_vel.angular.z = 0;
                       mCmdvelPub_.publish(current_vel);
+                      as_.setSucceeded(result_);
                       return;
                     }
                 }
