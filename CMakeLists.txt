@@ -27,17 +27,6 @@ generate_messages(
    std_msgs
 )
 
-add_service_files(
-  FILES
-  Charge.srv
-  StopCharge.srv
-)
-
-generate_messages(
-   DEPENDENCIES
-   std_msgs
-)
-
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy sensor_msgs std_msgs  tf2_ros
