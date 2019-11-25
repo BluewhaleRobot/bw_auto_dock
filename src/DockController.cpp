@@ -115,6 +115,30 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
     current_goal_.use_local = goal->use_local;
 
     {
+       //检查是否是强制退出充电
+        boost::mutex::scoped_lock lock(mMutex_charge);
+        if(current_goal_.method == 2)
+        {
+          mcurrentChargeFlag_ = false;
+          //下发充电开关闭命令
+          char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+          if (NULL != mcmd_serial_)
+          {
+              mcmd_serial_->write(cmd_str, 6);
+          }
+          geometry_msgs::Twist current_vel;
+          current_vel.linear.x = 0;
+          current_vel.linear.y = 0;
+          current_vel.linear.z = 0;
+          current_vel.angular.x = 0;
+          current_vel.angular.y = 0;
+          current_vel.angular.z = 0;
+          mCmdvelPub_.publish(current_vel);
+          return;
+        }
+    }
+
+    {
         boost::mutex::scoped_lock lock(mMutex_pose);
         if(!mPose_flag_)
         {
@@ -137,6 +161,29 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
             {
                 //if we're active and a new goal is available, we'll accept it, but we won't shut anything down
                 current_goal_ = *as_.acceptNewGoal();
+                {
+                   //检查是否是强制退出充电
+                    boost::mutex::scoped_lock lock(mMutex_charge);
+                    if(current_goal_.method == 2)
+                    {
+                      mcurrentChargeFlag_ = false;
+                      //下发充电开关闭命令
+                      char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+                      if (NULL != mcmd_serial_)
+                      {
+                          mcmd_serial_->write(cmd_str, 6);
+                      }
+                      geometry_msgs::Twist current_vel;
+                      current_vel.linear.x = 0;
+                      current_vel.linear.y = 0;
+                      current_vel.linear.z = 0;
+                      current_vel.angular.x = 0;
+                      current_vel.angular.y = 0;
+                      current_vel.angular.z = 0;
+                      mCmdvelPub_.publish(current_vel);
+                      return;
+                    }
+                }
                 this->resetState();
             }
             else
