@@ -824,6 +824,7 @@ void DockController::dealing_status(bool action_call_flag)
                 else
                 {
                     unusefull_num_++;
+                    usefull_num_ = 0;
                     if (unusefull_num_ > 20)
                     {
                         //下发充电开关使能命令,进入充电状态,黄灯
@@ -834,7 +835,8 @@ void DockController::dealing_status(bool action_call_flag)
                             mcmd_serial_->write(cmd_str, 6);
                         }
                         //根据充电电流，判断是否已经充满
-                        current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
+                        if(sensor_status.current>-0.1) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
+                        
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             //进入充满状态
