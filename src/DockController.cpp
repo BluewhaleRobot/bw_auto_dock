@@ -103,6 +103,7 @@ void DockController::run()
 
 void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus& current_receive_status)
 {
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
     //在空闲情况下如果超声波测量值小于250毫米，需要前进脱离障碍物,最多运行10秒时间
     static ros::WallTime free_time =ros::WallTime::now();
     static bool need_stop = false;
@@ -128,7 +129,7 @@ void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus&
 
     if(free_diff.toSec()>60 && free_diff.toSec()<60+10)
     {
-      if(bw_status_->sensor_status.distance1 <= 250 )
+      if(sensor_status.distance1 <= 250 )
       {
         need_stop = true;
         stop_num = 0;
@@ -241,6 +242,7 @@ void DockController::dealing_status()
 {
     boost::mutex::scoped_lock lock1(mMutex_charge);
     boost::mutex::scoped_lock lock2(mMutex_pose);
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
     geometry_msgs::Twist current_vel;
     if (!mPose_flag_)
     {
@@ -262,7 +264,7 @@ void DockController::dealing_status()
     {
         if (mcharge_status_ == CHARGE_STATUS::freed)
         {
-            if (bw_status_->sensor_status.power > 9.0)
+            if (sensor_status.power > 9.0)
             {
                 //已经侦测到电压，进入充电状态
                 mcharge_status_temp_ = CHARGE_STATUS_TEMP::charging1;
@@ -387,8 +389,8 @@ void DockController::dealing_status()
                     }
                 }
                 if (dock_position_current == DOCK_POSITION::back_center &&
-                    (bw_status_->sensor_status.left_sensor2 == 3 || bw_status_->sensor_status.left_sensor2 == 7) &&
-                    (bw_status_->sensor_status.right_sensor2 == 3 || bw_status_->sensor_status.right_sensor2 == 7))
+                    (sensor_status.left_sensor2 == 3 || sensor_status.left_sensor2 == 7) &&
+                    (sensor_status.right_sensor2 == 3 || sensor_status.right_sensor2 == 7))
                 {
                     ROS_DEBUG("finding1.2");
                     mPose1_ = mRobot_pose_;
@@ -527,7 +529,7 @@ void DockController::dealing_status()
                 // mdock__referenss_position_ == DOCK_POSITION::left_center) )
                 if ( unusefull_num_ >3)
                 {
-                    ROS_DEBUG("finding4.1 %d %d %d %d %d",(int)dock_position_current,(int)dock_position_reference,(int)DOCK_POSITION::back_center,bw_status_->sensor_status.left_sensor2,bw_status_->sensor_status.right_sensor2);
+                    ROS_DEBUG("finding4.1 %d %d %d %d %d",(int)dock_position_current,(int)dock_position_reference,(int)DOCK_POSITION::back_center,sensor_status.left_sensor2,sensor_status.right_sensor2);
 
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::docking1;
                     mcharge_status_ = CHARGE_STATUS::docking;
@@ -616,10 +618,10 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::docking2:
-                if (bw_status_->sensor_status.power > 9.0)
+                if (sensor_status.power > 9.0)
                 {
                     //已经侦测到电压，进入充电状态
-                    ROS_DEBUG("docking2.1 %f", bw_status_->sensor_status.power);
+                    ROS_DEBUG("docking2.1 %f", sensor_status.power);
                     mcharge_status_temp_ = CHARGE_STATUS_TEMP::charging1;
                     current_average_ = 1.0;
                     mcharge_status_ = CHARGE_STATUS::charging;
@@ -638,7 +640,7 @@ void DockController::dealing_status()
                 else
                 {
                     //触发了碰撞传感器
-                    if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
+                    if (sensor_status.distance1 <= this->crash_distance_ && sensor_status.distance1>0.1)
                     {
                         //进入docking3
                         ROS_DEBUG("docking2.2");
@@ -682,7 +684,7 @@ void DockController::dealing_status()
                 break;
             case CHARGE_STATUS_TEMP::docking3:
                 //往前移动，直到不会触发碰撞,或者已经移动30×3次
-                if ((bw_status_->sensor_status.distance1 > this->crash_distance_ && bw_status_->sensor_status.distance1>0.1 )||usefull_num_ > 30*3 ||bw_status_->sensor_status.power > 9.0)
+                if ((sensor_status.distance1 > this->crash_distance_ && sensor_status.distance1>0.1 )||usefull_num_ > 30*3 || sensor_status.power > 9.0)
                 {
                     if(usefull_num_ > 30*3)
                     {
@@ -850,7 +852,7 @@ void DockController::dealing_status()
                 //     current_vel.angular.z = 0;
                 //     mCmdvelPub_.publish(current_vel);
                 // }
-                if (bw_status_->sensor_status.power < 9.0)
+                if (sensor_status.power < 9.0)
                 {
                     //没有侦测到电压，进入temp1
                     usefull_num_++;
@@ -880,6 +882,7 @@ void DockController::dealing_status()
                 else
                 {
                     unusefull_num_++;
+                    usefull_num_ = 0;
                     if (unusefull_num_ > 20)
                     {
                         //下发充电开关使能命令,进入充电状态,黄灯
@@ -890,8 +893,8 @@ void DockController::dealing_status()
                             mcmd_serial_->write(cmd_str, 6);
                         }
                         //根据充电电流，判断是否已经充满
-                        current_average_ = current_average_ * 0.99 + bw_status_->sensor_status.current * 0.01;
-                        if ((current_average_) < 0.1 || bw_status_->sensor_status.battery > power_threshold_)
+                        if(sensor_status.current>-0.1)  current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
+                        if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             //进入充满状态
                             //下发充满显示状态使能命令，绿灯
@@ -927,7 +930,7 @@ void DockController::dealing_status()
                 }
                 break;
             case CHARGE_STATUS_TEMP::charged1:
-                if (usefull_num_ > 18000 || bw_status_->sensor_status.battery > power_threshold_)
+                if (usefull_num_ > 18000 || bw_status_->get_battery_power() > power_threshold_)
                 {
                     // 10分钟后转成freed
                     // //进入free显示状态，下发充电开关闭命令，关闭灯
@@ -1002,7 +1005,7 @@ void DockController::dealing_status()
             current_vel.angular.z = 0;
             mCmdvelPub_.publish(current_vel);
         }
-        if (bw_status_->sensor_status.power > 9.0)
+        if (sensor_status.power > 9.0)
         {
           //下发充电开关闭命令
           char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
@@ -1077,6 +1080,7 @@ bool DockController::backToPose3()
 
 bool DockController::backToDock()
 {
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
     geometry_msgs::Pose current_pose = mRobot_pose_;
     float x, y, theta;
     x = current_pose.position.x;
@@ -1088,14 +1092,14 @@ bool DockController::backToDock()
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
     //如果侦测到电压，停止
-    if (bw_status_->sensor_status.power > 9.0)
+    if (sensor_status.power > 9.0)
         return true;
 
     //如果侦测到已进入死角，停止
-    if (bw_status_->sensor_status.distance1 <= this->crash_distance_ && bw_status_->sensor_status.distance1>0.1)
+    if (sensor_status.distance1 <= this->crash_distance_ && sensor_status.distance1>0.1)
         return true;
 
-    if ((bw_status_->sensor_status.left_sensor2 == 0) && (bw_status_->sensor_status.right_sensor2 == 0))
+    if ((sensor_status.left_sensor2 == 0) && (sensor_status.right_sensor2 == 0))
     {
         usefull_num_++;
         unusefull_num_ = 0;
@@ -1151,8 +1155,9 @@ bool DockController::backToDock()
 
 float DockController::computeDockError()
 {
-    int l2 = bw_status_->sensor_status.left_sensor2;
-    int r2 = bw_status_->sensor_status.right_sensor2;
+    UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
+    int l2 = sensor_status.left_sensor2;
+    int r2 = sensor_status.right_sensor2;
     float return_value = 0.0;
     if (l2 == 0)
     {
