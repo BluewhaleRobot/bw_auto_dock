@@ -417,7 +417,7 @@ float StatusPublisher::get_battery_power()
 {
     static float last_power =0;
     boost::mutex::scoped_lock lock(mMutex_sensor);
-    if(last_power<9 &&std::fabs(last_power-sensor_status.battery)<0.3)
+    if(last_power<9 || (std::fabs(last_power-sensor_status.battery)<1.5 && sensor_status.battery<60 && sensor_status.battery>0))
     {
       last_power = sensor_status.battery;
     }
