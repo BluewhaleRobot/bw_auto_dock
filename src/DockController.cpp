@@ -836,7 +836,7 @@ void DockController::dealing_status(bool action_call_flag)
                         }
                         //根据充电电流，判断是否已经充满
                         if(sensor_status.current>-0.1) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
-                        
+                        //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             //进入充满状态
