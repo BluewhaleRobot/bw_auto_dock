@@ -825,6 +825,7 @@ void DockController::dealing_status(bool action_call_flag)
                 {
                     unusefull_num_++;
                     usefull_num_ = 0;
+                    static int trig_num =0 ;
                     if (unusefull_num_ > 20)
                     {
                         //下发充电开关使能命令,进入充电状态,黄灯
@@ -835,28 +836,37 @@ void DockController::dealing_status(bool action_call_flag)
                             mcmd_serial_->write(cmd_str, 6);
                         }
                         //根据充电电流，判断是否已经充满
-                        if(sensor_status.current>-0.1) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
+                        if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
-                        {
-                            //进入充满状态
-                            //下发充满显示状态使能命令，绿灯
-                            char cmd_str[6] = {
-                                (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
-                            };
-                            if (NULL != mcmd_serial_)
+                        {  
+                            trig_num ++;
+                            if(trig_num>50)
                             {
-                                mcmd_serial_->write(cmd_str, 6);
+                                //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
+                                //进入充满状态
+                                //下发充满显示状态使能命令，绿灯
+                                char cmd_str[6] = {
+                                    (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
+                                };
+                                if (NULL != mcmd_serial_)
+                                {
+                                    mcmd_serial_->write(cmd_str, 6);
+                                }
+                                mcharge_status_temp_ = CHARGE_STATUS_TEMP::charged1;
+                                mcharge_status_ = CHARGE_STATUS::charged;
+                                bw_status_->set_charge_status(mcharge_status_);
+                                usefull_num_ = 0;
+                                unusefull_num_ = 0;
+                                //开启红外避障
+                                std_msgs::Bool pub_data;
+                                pub_data.data = true;
+                                mbarDetectPub_.publish(pub_data);
                             }
-                            mcharge_status_temp_ = CHARGE_STATUS_TEMP::charged1;
-                            mcharge_status_ = CHARGE_STATUS::charged;
-                            bw_status_->set_charge_status(mcharge_status_);
-                            usefull_num_ = 0;
-                            unusefull_num_ = 0;
-                            //开启红外避障
-                            std_msgs::Bool pub_data;
-                            pub_data.data = true;
-                            mbarDetectPub_.publish(pub_data);
+                        }
+                        else
+                        {
+                            trig_num = 0;
                         }
                     }
                 }
