@@ -12,7 +12,7 @@
     <param name="back_dock_ki" value="0.04"/>
     <param name="back_dock_kd" value="0.0"/>
     <!-- 自动充电设备串口号-->
-    <param name="port" value="/dev/ttyUSB0"/>
+    <param name="port" value="/dev/ttyUSB004"/>
     <!-- 全局坐标系名字-->
     <param name="global_frame_id" value="map"/>
     <!-- 里程计话题名字-->
