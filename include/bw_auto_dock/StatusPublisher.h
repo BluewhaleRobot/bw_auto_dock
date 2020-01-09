@@ -62,6 +62,7 @@ typedef struct
     unsigned int left_switch1;
     unsigned int right_switch1;
     unsigned int time_stamp;  //时间戳
+    unsigned int version;
 } UPLOAD_STATUS;
 
 typedef enum class Dcharge_status
