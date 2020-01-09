@@ -65,6 +65,7 @@ typedef struct
     float distance1;
     float distance2;
     unsigned int time_stamp;  //时间戳
+    unsigned int version;
 } UPLOAD_STATUS;
 
 typedef enum class Dcharge_status
