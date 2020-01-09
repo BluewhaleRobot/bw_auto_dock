@@ -114,17 +114,14 @@ void StatusPublisher::Update(const char data[], unsigned int len)
                     //当前包已经处理完成，开始处理
                     boost::mutex::scoped_lock lock(mMutex_sensor);
 
-                    if (new_packed_ok_len == 45)
+                    if (new_packed_ok_len == 50)
                     {
-                        for (j = 0; j < 9; j++)
+                        for (j = 0; j < 10; j++)
                         {
                             memcpy(&receive_byte[j], &cmd_string_buf[5 * j], 4);
                         }
                         mbUpdated = true;
-                    }
-                    if (mbUpdated)
-                    {
-                        for (j = 0; j < 8; j++)
+                        for (j = 0; j < 9; j++)
                         {
                             if (cmd_string_buf[5 * j + 4] != 32)
                             {
@@ -136,6 +133,19 @@ void StatusPublisher::Update(const char data[], unsigned int len)
                                 break;
                             }
                         }
+                    }
+                    if (new_packed_ok_len == 55)
+                    {
+                      for(j=0;j<11;j++)
+                      {
+                          //要校验和
+                          unsigned char sum = cmd_string_buf[5*j] + cmd_string_buf[5*j+1] + cmd_string_buf[5*j+2] + cmd_string_buf[5*j+3];
+                          if(sum == cmd_string_buf[5*j+4])
+                          {
+                            memcpy(&receive_byte[j],&cmd_string_buf[5*j],4);
+                            mbUpdated = true;
+                          }
+                      }
                     }
                     // ii++;
                     // std::cout << ii << std::endl;
