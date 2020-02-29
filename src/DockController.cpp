@@ -90,7 +90,7 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
 
 void DockController::resetState()
 {
-  mcharge_status_ == CHARGE_STATUS::freed;
+  mcharge_status_ = CHARGE_STATUS::freed;
   usefull_num_ = 0;
   unusefull_num_ = 0;
   mcurrentChargeFlag_ = true;
