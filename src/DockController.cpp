@@ -90,7 +90,7 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
 
 void DockController::resetState()
 {
-  mcharge_status_ == CHARGE_STATUS::freed;
+  mcharge_status_ = CHARGE_STATUS::freed;
   usefull_num_ = 0;
   unusefull_num_ = 0;
   mcurrentChargeFlag_ = true;
@@ -839,7 +839,7 @@ void DockController::dealing_status(bool action_call_flag)
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
-                        {  
+                        {
                             trig_num ++;
                             if(trig_num>50)
                             {
