@@ -819,6 +819,8 @@ void DockController::dealing_status(bool action_call_flag)
                         current_vel.angular.y = 0;
                         current_vel.angular.z = 0;
                         mCmdvelPub_.publish(current_vel);
+                        //C2输出电平置零
+                        ros::param::set("/xqserial_server/params/out1", 0);
                     }
                 }
                 else
@@ -835,6 +837,8 @@ void DockController::dealing_status(bool action_call_flag)
                         {
                             mcmd_serial_->write(cmd_str, 6);
                         }
+                        //C2输出电平置高
+                        ros::param::set("/xqserial_server/params/out1", 1);
                         //根据充电电流，判断是否已经充满
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
@@ -862,6 +866,8 @@ void DockController::dealing_status(bool action_call_flag)
                                 std_msgs::Bool pub_data;
                                 pub_data.data = true;
                                 mbarDetectPub_.publish(pub_data);
+                                //C2输出电平置零
+                                ros::param::set("/xqserial_server/params/out1", 0);
                             }
                         }
                         else
