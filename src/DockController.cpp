@@ -185,6 +185,8 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
                       current_vel.angular.z = 0;
                       mCmdvelPub_.publish(current_vel);
                       as_.setSucceeded(result_);
+                      //C2输出电平置零
+                      ros::param::set("/xqserial_server/params/out1", 0);
                       return;
                     }
                 }
@@ -307,7 +309,8 @@ bool DockController::ChargeService(bw_auto_dock::Charge::Request &req, bw_auto_d
   action_goal.goal.y = req.y;
   action_goal.goal.angle = req.theta;
   action_goal_pub_.publish(action_goal);
-
+  //C2输出电平置零
+  ros::param::set("/xqserial_server/params/out1", 0);
   resp.result = true;
   return true;
 }
@@ -403,6 +406,8 @@ void DockController::updateChargeFlag(const std_msgs::Bool& currentFlag)
     {
         mcmd_serial_->write(cmd_str, 6);
     }
+    //C2输出电平置零
+    ros::param::set("/xqserial_server/params/out1", 0);
     //发布对应action
     if(mcurrentChargeFlag_)
     {
@@ -984,6 +989,8 @@ void DockController::dealing_status(bool action_call_flag)
           {
               mcmd_serial_->write(cmd_str, 6);
           }
+          //C2输出电平置零
+          ros::param::set("/xqserial_server/params/out1", 0);
         }
         mcharge_status_ = CHARGE_STATUS::freed;
         mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
