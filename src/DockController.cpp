@@ -135,6 +135,8 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
           current_vel.angular.z = 0;
           mCmdvelPub_.publish(current_vel);
           as_.setSucceeded(result_);
+          //C2输出电平置零
+          ros::param::set("/xqserial_server/params/out1", 0);
           return;
         }
     }
@@ -323,6 +325,8 @@ bool DockController::StopChargeService(bw_auto_dock::StopCharge::Request &req, b
   }
 
   resp.result = true;
+  //C2输出电平置零
+  ros::param::set("/xqserial_server/params/out1", 0);
   return true;
 }
 
@@ -1456,7 +1460,7 @@ bool DockController::goToStation3()
       return true;
     }
     else
-    { 
+    {
       ROS_DEBUG("finding1.0.0 %f %f",dx, dy);
       float diff_theta = std::atan2(dy,dx) - theta;
       if(move_back_flag)
