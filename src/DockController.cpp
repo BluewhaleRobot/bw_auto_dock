@@ -1369,6 +1369,7 @@ bool DockController::rotate2Station3()
     }
     else
     {
+        ROS_DEBUG("finding2.0.0 %f",fabs(theta - mstationPose3_[2]));
         geometry_msgs::Twist current_vel;
         current_vel.linear.x = 0;
         current_vel.linear.y = 0;
@@ -1455,7 +1456,8 @@ bool DockController::goToStation3()
       return true;
     }
     else
-    {
+    { 
+      ROS_DEBUG("finding1.0.0 %f %f",dx, dy);
       float diff_theta = std::atan2(dy,dx) - theta;
       if(move_back_flag)
       {
