@@ -1430,20 +1430,6 @@ bool DockController::goToStation3()
 
     bool move_back_flag = false;
     if(diff_distance < 0 && sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
-    float diff_theta = mstationPose3_[0] - theta;
-    if(move_back_flag)
-    {
-      //后退情况下需要加上180或被180度减
-      if(diff_theta<0)
-      {
-        diff_theta += 3.1415926;
-      }
-      if(diff_theta>0)
-      {
-        diff_theta = 3.1415926 - diff_theta;
-      }
-    }
-
     if(fabs(dx)<= 0.05 && fabs(dy)<= 0.05)
     {
       return true;
@@ -1451,20 +1437,26 @@ bool DockController::goToStation3()
     else
     {
       float diff_theta = std::atan2(dy,dx) - theta;
+      if(diff_theta < -M_PI)
+        diff_theta += M_PI * 2;
+      if(diff_theta > M_PI)
+        diff_theta -= M_PI * 2;
+      ROS_DEBUG("finding1.0.0 %f %f, %d %f ",dx, dy, (int)move_back_flag, diff_theta);
       if(move_back_flag)
       {
         //后退情况下需要加上180或被180度减
         if(diff_theta<0)
         {
-          diff_theta += 3.1415926;
+          diff_theta += M_PI;
         }
         else{
           if(diff_theta>0)
           {
-            diff_theta = 3.1415926 - diff_theta;
+            diff_theta = M_PI - diff_theta;
           }
         }
       }
+      ROS_DEBUG("finding1.0.0 %f %f %f ",dx, dy, diff_theta);
 
       geometry_msgs::Twist current_vel;
       //pid 对准
