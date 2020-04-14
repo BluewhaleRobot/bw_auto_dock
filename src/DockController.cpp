@@ -337,7 +337,7 @@ void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus&
 {
     UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
 
-    //在空闲情况下如果超声波测量值小于250毫米，需要前进脱离障碍物,最多运行10秒时间
+    //在空闲情况下如果超声波测量值小于250毫米，需要前进脱离障碍物,最多运行5秒时间
     static ros::WallTime free_time =ros::WallTime::now();
     static bool need_stop = false;
     static int stop_num = 0;
@@ -934,15 +934,18 @@ void DockController::dealing_status(bool action_call_flag)
         if(mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged)
         {
           //先进入temp3,前进250mm,再转入free
+          if(mcharge_status_temp_ != CHARGE_STATUS_TEMP::temp3)
+          {
+            usefull_num_ = 0;
+            unusefull_num_ = 0;
+          }
           mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp3;
-          usefull_num_ = 0;
-          unusefull_num_ = 0;
         }
 
         if(mcharge_status_temp_ == CHARGE_STATUS_TEMP::temp3)
         {
           //前进250mm
-          ROS_DEBUG("temp3.1 ");
+          ROS_DEBUG("temp3.1 %d ", usefull_num_ );
           if (sensor_status.distance1 > 250 || usefull_num_ >= 30*5)
           {
               //转入free
