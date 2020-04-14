@@ -919,9 +919,12 @@ void DockController::dealing_status(bool action_call_flag)
         if(mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged)
         {
           //先进入temp3,前进250mm,再转入free
+          if(mcharge_status_temp_ != CHARGE_STATUS_TEMP::temp3)
+          {
+            usefull_num_ = 0;
+            unusefull_num_ = 0;
+          }
           mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp3;
-          usefull_num_ = 0;
-          unusefull_num_ = 0;
         }
 
         if(mcharge_status_temp_ == CHARGE_STATUS_TEMP::temp3)
