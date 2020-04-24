@@ -95,6 +95,7 @@ def charge_task():
     AUDIO_PUB.publish("电量低，开始自动返回充电")
     global GALILEO_PUB, CHARGE_GOAL, CURRENT_STATUS
     # 停止巡检任务
+    rospy.set_param("/xqserial_server/params/out1", 1) #输出高电平
     galileo_cmds = GalileoNativeCmds()
     galileo_cmds.data = 'm' + chr(0x06)
     galileo_cmds.length = len(galileo_cmds.data)
@@ -132,6 +133,7 @@ def charge_task():
     # wait for goal complete
     while CURRENT_STATUS.targetNumID == charge_goal_index and CURRENT_STATUS.navStatus == 1 and not (CURRENT_STATUS.targetStatus == 0 or CURRENT_STATUS.targetStatus == -1):
         time.sleep(1)
+        rospy.set_param("/xqserial_server/params/out1", 1) #输出高电平
     if CURRENT_STATUS.navStatus != 1:
         return
     if CURRENT_STATUS.targetStatus == 0:

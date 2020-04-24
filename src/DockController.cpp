@@ -846,13 +846,13 @@ void DockController::dealing_status(bool action_call_flag)
                                 //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                                 //进入充满状态
                                 //下发充满显示状态使能命令，绿灯
-                                char cmd_str[6] = {
-                                    (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
-                                };
-                                if (NULL != mcmd_serial_)
-                                {
-                                    mcmd_serial_->write(cmd_str, 6);
-                                }
+                                // char cmd_str[6] = {
+                                //     (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
+                                // };
+                                // if (NULL != mcmd_serial_)
+                                // {
+                                //     mcmd_serial_->write(cmd_str, 6);
+                                // }
                                 mcharge_status_temp_ = CHARGE_STATUS_TEMP::charged1;
                                 mcharge_status_ = CHARGE_STATUS::charged;
                                 bw_status_->set_charge_status(mcharge_status_);
@@ -897,7 +897,7 @@ void DockController::dealing_status(bool action_call_flag)
                     // bw_status_->set_charge_status(mcharge_status_);
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
-                    mcurrentChargeFlag_ = false;
+                    //mcurrentChargeFlag_ = false;
                 }
                 else
                 {
