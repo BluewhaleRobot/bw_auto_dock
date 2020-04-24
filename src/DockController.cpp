@@ -910,7 +910,7 @@ void DockController::dealing_status(bool action_call_flag)
                 // current_vel.angular.x = 0;
                 // current_vel.angular.y = 0;
                 // current_vel.angular.z = 0;
-                mCmdvelPub_.publish(current_vel);
+                //mCmdvelPub_.publish(current_vel);
                 break;
         }
     }
