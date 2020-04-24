@@ -897,7 +897,7 @@ void DockController::dealing_status(bool action_call_flag)
                     // bw_status_->set_charge_status(mcharge_status_);
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
-                    mcurrentChargeFlag_ = false;
+                    //mcurrentChargeFlag_ = false;
                 }
                 else
                 {
