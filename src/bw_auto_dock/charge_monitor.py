@@ -11,6 +11,7 @@ from galileo_serial_server.msg import GalileoStatus, GalileoNativeCmds
 from threading import _start_new_thread
 from std_msgs.msg import String
 import os
+import requests
 
 CHARGING_TIME = 0
 CHARGING_OFF_TIME = 30*60*1000 #30分钟后自动关机
@@ -94,6 +95,11 @@ def charge_task():
     time.sleep(10)
     AUDIO_PUB.publish("电量低，开始自动返回充电")
     global GALILEO_PUB, CHARGE_GOAL, CURRENT_STATUS
+    try:
+        r = requests.get('http://127.0.0.1:3546/api/v1/task/stop', timeout=5)
+    except Exception as e:
+        print(e)
+        return
     # 停止巡检任务
     rospy.set_param("/xqserial_server/params/out1", 1) #输出高电平
     galileo_cmds = GalileoNativeCmds()
