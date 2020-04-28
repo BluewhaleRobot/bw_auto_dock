@@ -90,7 +90,7 @@ DockController::DockController(double back_distance, double max_linearspeed, dou
 
 void DockController::resetState()
 {
-  mcharge_status_ == CHARGE_STATUS::freed;
+  mcharge_status_ = CHARGE_STATUS::freed;
   usefull_num_ = 0;
   unusefull_num_ = 0;
   mcurrentChargeFlag_ = true;
@@ -839,20 +839,20 @@ void DockController::dealing_status(bool action_call_flag)
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
-                        {  
+                        {
                             trig_num ++;
                             if(trig_num>50)
                             {
                                 //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                                 //进入充满状态
                                 //下发充满显示状态使能命令，绿灯
-                                char cmd_str[6] = {
-                                    (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
-                                };
-                                if (NULL != mcmd_serial_)
-                                {
-                                    mcmd_serial_->write(cmd_str, 6);
-                                }
+                                // char cmd_str[6] = {
+                                //     (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
+                                // };
+                                // if (NULL != mcmd_serial_)
+                                // {
+                                //     mcmd_serial_->write(cmd_str, 6);
+                                // }
                                 mcharge_status_temp_ = CHARGE_STATUS_TEMP::charged1;
                                 mcharge_status_ = CHARGE_STATUS::charged;
                                 bw_status_->set_charge_status(mcharge_status_);
@@ -897,7 +897,7 @@ void DockController::dealing_status(bool action_call_flag)
                     // bw_status_->set_charge_status(mcharge_status_);
                     usefull_num_ = 0;
                     unusefull_num_ = 0;
-                    mcurrentChargeFlag_ = false;
+                    //mcurrentChargeFlag_ = false;
                 }
                 else
                 {
@@ -910,7 +910,7 @@ void DockController::dealing_status(bool action_call_flag)
                 // current_vel.angular.x = 0;
                 // current_vel.angular.y = 0;
                 // current_vel.angular.z = 0;
-                mCmdvelPub_.publish(current_vel);
+                //mCmdvelPub_.publish(current_vel);
                 break;
         }
     }
@@ -919,9 +919,12 @@ void DockController::dealing_status(bool action_call_flag)
         if(mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged)
         {
           //先进入temp3,前进250mm,再转入free
+          if(mcharge_status_temp_ != CHARGE_STATUS_TEMP::temp3)
+          {
+            usefull_num_ = 0;
+            unusefull_num_ = 0;
+          }
           mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp3;
-          usefull_num_ = 0;
-          unusefull_num_ = 0;
         }
 
         if(mcharge_status_temp_ == CHARGE_STATUS_TEMP::temp3)
@@ -1430,19 +1433,6 @@ bool DockController::goToStation3()
 
     bool move_back_flag = false;
     if(diff_distance < 0 && sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
-    float diff_theta = mstationPose3_[0] - theta;
-    if(move_back_flag)
-    {
-      //后退情况下需要加上180或被180度减
-      if(diff_theta<0)
-      {
-        diff_theta += 3.1415926;
-      }
-      if(diff_theta>0)
-      {
-        diff_theta = 3.1415926 - diff_theta;
-      }
-    }
 
     if(fabs(dx)<= 0.05 && fabs(dy)<= 0.05)
     {
@@ -1451,20 +1441,26 @@ bool DockController::goToStation3()
     else
     {
       float diff_theta = std::atan2(dy,dx) - theta;
+      if(diff_theta < -M_PI)
+        diff_theta += M_PI * 2;
+      if(diff_theta > M_PI)
+        diff_theta -= M_PI * 2;
+      ROS_DEBUG("finding1.0.0 %f %f, %d %f ",dx, dy, (int)move_back_flag, diff_theta);
       if(move_back_flag)
       {
         //后退情况下需要加上180或被180度减
         if(diff_theta<0)
         {
-          diff_theta += 3.1415926;
+          diff_theta += M_PI;
         }
         else{
           if(diff_theta>0)
           {
-            diff_theta = 3.1415926 - diff_theta;
+            diff_theta = M_PI - diff_theta;
           }
         }
       }
+      ROS_DEBUG("finding1.0.0 %f %f %f ",dx, dy, diff_theta);
 
       geometry_msgs::Twist current_vel;
       //pid 对准
