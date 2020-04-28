@@ -37,6 +37,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+# fix cannot link liborocos-kdl.so
+list(REMOVE_ITEM catkin_LIBRARIES "/opt/ros/kinetic/lib/liborocos-kdl.so")
+
 set(BOOST_LIBS thread date_time system)
 find_package(Boost COMPONENTS ${BOOST_LIBS} REQUIRED)
 find_package(Threads REQUIRED)
