@@ -21,7 +21,7 @@ GALILEO_PUB = None
 AUDIO_PUB = None
 CHARGE_GOAL = None
 LAST_CHARGE_CMD_TIME = 0
-POWER_LOW = 32.0
+POWER_LOW = 33.5
 CURRENT_STATUS = None
 
 LAST_NAV_TIME = int(time.time() * 1000)
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     AUDIO_PUB = rospy.Publisher(
         "/xiaoqiang_tts/text", String, queue_size=1
     )
-    POWER_LOW = float(rospy.get_param("~power_low", "36.0"))
+    POWER_LOW = float(rospy.get_param("~power_low", "33.5"))
     load_charge_goal()
     station_filename = rospy.get_param(
         "~station_filename", default="/home/xiaoqiang/slamdb/dock_station.txt")
