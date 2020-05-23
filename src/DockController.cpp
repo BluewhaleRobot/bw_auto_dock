@@ -839,7 +839,7 @@ void DockController::dealing_status(bool action_call_flag)
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
-                        {  
+                        {
                             trig_num ++;
                             if(trig_num>50)
                             {
@@ -1146,19 +1146,25 @@ float DockController::computeDockError()
         {
             case 1:
             case 5:
-                if (l2 == 2 || l2 == 3 || l2 == 6 || l2 == 7)
+                if (l2 == 2  || l2 == 6 ) //|| l2 == 3 || l2 == 7
                     return return_value;
                 return_value = 1.0;
                 break;
             case 2:
-            case 3:
             case 6:
+                if (l2 == 1 || l2 ==5)
+                  return return_value;
+                if (l2 == 2 || l2 == 6 || l2 == 3 || l2 == 7)
+                  return_value = -1;
+                if (l2 ==4)
+                  return_value = 1;
+            case 3:
             case 7:
-                if (l2 == 1 || l2 == 3 || l2 == 5 || l2 == 7)
+                if (l2 == 3  || l2 == 7)
                     return return_value;
                 if (l2 == 2 || l2 == 6)
                     return_value = -1.0;
-                if (l2 == 4)
+                if (l2 == 4 || l2 == 1 || l2 == 5)
                     return_value = 1.0;
                 break;
             case 4:
