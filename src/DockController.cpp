@@ -840,32 +840,33 @@ void DockController::dealing_status(bool action_call_flag)
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                         if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
                         {
-                          trig_num ++;
-                          if(trig_num>50)
-                          {
-                            //进入充满状态
-                            //下发充满显示状态使能命令，绿灯
-                            char cmd_str[6] = {
-                                (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
-                            };
-                            if (NULL != mcmd_serial_)
+                            trig_num ++;
+                            if(trig_num>50)
                             {
-                                mcmd_serial_->write(cmd_str, 6);
+                                //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
+                                //进入充满状态
+                                //下发充满显示状态使能命令，绿灯
+                                char cmd_str[6] = {
+                                    (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x02
+                                };
+                                if (NULL != mcmd_serial_)
+                                {
+                                    mcmd_serial_->write(cmd_str, 6);
+                                }
+                                mcharge_status_temp_ = CHARGE_STATUS_TEMP::charged1;
+                                mcharge_status_ = CHARGE_STATUS::charged;
+                                bw_status_->set_charge_status(mcharge_status_);
+                                usefull_num_ = 0;
+                                unusefull_num_ = 0;
+                                //开启红外避障
+                                std_msgs::Bool pub_data;
+                                pub_data.data = true;
+                                mbarDetectPub_.publish(pub_data);
                             }
-                            mcharge_status_temp_ = CHARGE_STATUS_TEMP::charged1;
-                            mcharge_status_ = CHARGE_STATUS::charged;
-                            bw_status_->set_charge_status(mcharge_status_);
-                            usefull_num_ = 0;
-                            unusefull_num_ = 0;
-                            //开启红外避障
-                            std_msgs::Bool pub_data;
-                            pub_data.data = true;
-                            mbarDetectPub_.publish(pub_data);
-                          }
                         }
                         else
                         {
-                          trig_num = 0;
+                            trig_num = 0;
                         }
                     }
                 }
@@ -1145,19 +1146,25 @@ float DockController::computeDockError()
         {
             case 1:
             case 5:
-                if (l2 == 2 || l2 == 3 || l2 == 6 || l2 == 7)
+                if (l2 == 2  || l2 == 6 ) //|| l2 == 3 || l2 == 7
                     return return_value;
                 return_value = 1.0;
                 break;
             case 2:
-            case 3:
             case 6:
+                if (l2 == 1 || l2 ==5)
+                  return return_value;
+                if (l2 == 2 || l2 == 6 || l2 == 3 || l2 == 7)
+                  return_value = -1;
+                if (l2 ==4)
+                  return_value = 1;
+            case 3:
             case 7:
-                if (l2 == 1 || l2 == 3 || l2 == 5 || l2 == 7)
+                if (l2 == 3  || l2 == 7)
                     return return_value;
                 if (l2 == 2 || l2 == 6)
                     return_value = -1.0;
-                if (l2 == 4)
+                if (l2 == 4 || l2 == 1 || l2 == 5)
                     return_value = 1.0;
                 break;
             case 4:
@@ -1429,6 +1436,20 @@ bool DockController::goToStation3()
 
     bool move_back_flag = false;
     if(diff_distance < 0 && sensor_status.distance1 > crash_distance_ ) move_back_flag = true; //没触发超声波同时在机器人后面，使用后退方式
+    float diff_theta = mstationPose3_[0] - theta;
+    if(move_back_flag)
+    {
+      //后退情况下需要加上180或被180度减
+      if(diff_theta<0)
+      {
+        diff_theta += 3.1415926;
+      }
+      if(diff_theta>0)
+      {
+        diff_theta = 3.1415926 - diff_theta;
+      }
+    }
+
     if(fabs(dx)<= 0.05 && fabs(dy)<= 0.05)
     {
       return true;
@@ -1436,26 +1457,20 @@ bool DockController::goToStation3()
     else
     {
       float diff_theta = std::atan2(dy,dx) - theta;
-      if(diff_theta < -M_PI)
-        diff_theta += M_PI * 2;
-      if(diff_theta > M_PI)
-        diff_theta -= M_PI * 2;
-      ROS_DEBUG("finding1.0.0 %f %f, %d %f ",dx, dy, (int)move_back_flag, diff_theta);
       if(move_back_flag)
       {
         //后退情况下需要加上180或被180度减
         if(diff_theta<0)
         {
-          diff_theta += M_PI;
+          diff_theta += 3.1415926;
         }
         else{
           if(diff_theta>0)
           {
-            diff_theta = M_PI - diff_theta;
+            diff_theta = 3.1415926 - diff_theta;
           }
         }
       }
-      ROS_DEBUG("finding1.0.0 %f %f %f ",dx, dy, diff_theta);
 
       geometry_msgs::Twist current_vel;
       //pid 对准
