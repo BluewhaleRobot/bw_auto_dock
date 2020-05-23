@@ -40,6 +40,9 @@ set(BOOST_LIBS thread date_time system)
 find_package(Boost COMPONENTS ${BOOST_LIBS} REQUIRED)
 find_package(Threads REQUIRED)
 
+# fix cannot link liborocos-kdl.so
+list(REMOVE_ITEM catkin_LIBRARIES "/opt/ros/kinetic/lib/liborocos-kdl.so")
+
 set(SRCS src/main.cpp src/AsyncSerial.cpp src/DockController.cpp src/StatusPublisher.cpp src/getDockPosition.cpp)
 add_executable(${PROJECT_NAME} ${SRCS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
