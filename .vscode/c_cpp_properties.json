@@ -7,6 +7,7 @@
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/include/bw_audo_dock",
                 "/opt/ros/kinetic/include",
+                "/opt/ros/noetic/include",
                 "/home/xiaoqiang/Documents/ros/devel/include"
             ],
             "defines": [],
