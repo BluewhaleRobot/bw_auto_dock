@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding=utf-8
 """
 电量监控服务，当电量太低的时候，启动自动充电
