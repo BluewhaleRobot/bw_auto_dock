@@ -988,14 +988,14 @@ void DockController::caculatePose3()
 {
     float theta1, theta2, x, y, theta;
 
-    tf::Quaternion q1(mPose1_.orientation.x, mPose1_.orientation.y, mPose1_.orientation.z, mPose1_.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Quaternion q1(mPose1_.orientation.x, mPose1_.orientation.y, mPose1_.orientation.z, mPose1_.orientation.w);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta1 = yaw;
 
-    tf::Quaternion q2(mPose1_.orientation.x, mPose1_.orientation.y, mPose1_.orientation.z, mPose1_.orientation.w);
-    tf::Matrix3x3 m2(q2);
+    tf2::Quaternion q2(mPose1_.orientation.x, mPose1_.orientation.y, mPose1_.orientation.z, mPose1_.orientation.w);
+    tf2::Matrix3x3 m2(q2);
     m2.getRPY(roll, pitch, yaw);
     theta2 = yaw;
 
@@ -1016,9 +1016,9 @@ bool DockController::backToPose3()
     float x, y, theta, x2, y2;
     x = current_pose.position.x;
     y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
@@ -1049,9 +1049,9 @@ bool DockController::backToDock()
     float x, y, theta;
     x = current_pose.position.x;
     y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
@@ -1201,9 +1201,9 @@ bool DockController::rotateOrigin()
     float x, y, theta;
     x = current_pose.position.x;
     y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
@@ -1309,9 +1309,9 @@ bool DockController::getRobotPose(float (&robot_pose)[3])
     geometry_msgs::Pose current_pose = mRobot_pose_;
     robot_pose[0] = current_pose.position.x;
     robot_pose[1] = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     robot_pose[2] = yaw;
@@ -1325,9 +1325,9 @@ bool DockController::getIRPose(float (&robot_pose)[3])
         return false;
     geometry_msgs::Pose current_pose = mRobot_pose_;
 
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     robot_pose[2] = yaw;
@@ -1357,9 +1357,9 @@ bool DockController::rotate2Station3()
     float x, y, theta;
     x = current_pose.position.x;
     y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
 
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
@@ -1422,9 +1422,9 @@ bool DockController::goToStation3()
     float x, y, theta;
     x = current_pose.position.x;
     y = current_pose.position.y;
-    tf::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
+    tf2::Quaternion q1(current_pose.orientation.x, current_pose.orientation.y, current_pose.orientation.z,
                       current_pose.orientation.w);
-    tf::Matrix3x3 m1(q1);
+    tf2::Matrix3x3 m1(q1);
     double roll, pitch, yaw;
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
