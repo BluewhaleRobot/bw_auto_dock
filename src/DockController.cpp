@@ -141,7 +141,7 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
 
     {
         boost::mutex::scoped_lock lock(mMutex_pose);
-        if(!mPose_flag_)
+        if(!mPose_flag_ && current_goal_.method != 1)
         {
             ROS_DEBUG("oups2");
             as_.setAborted(galileo_msg::AutoChargeResult(), "Aborting on the goal because pose not ready");
@@ -489,7 +489,7 @@ void DockController::dealing_status(bool action_call_flag)
           galileo_msg::AutoChargeActionGoal action_goal;
           action_goal.header.stamp = ros::Time::now();
           action_goal.goal.use_local = true;
-          action_goal.goal.method = 0;
+          action_goal.goal.method = 1;
           action_goal.goal.x = 0;
           action_goal.goal.y = 0;
           action_goal.goal.angle = 0;
