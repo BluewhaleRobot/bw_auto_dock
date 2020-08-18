@@ -1083,7 +1083,7 @@ bool DockController::backToPose3()
     //ROS_DEBUG("theta3  %f  %f x3 y3 %f %f x y %f %f x2 y2 %f %f ", mPose3_[2], theta, mPose3_[0], mPose3_[1], x, y, x2,
     //          y2);
 
-    if (fabs(x2) <= 0.03)
+    if (fabs(x2) <= 0.05)
         return true;
     geometry_msgs::Twist current_vel;
     current_vel.linear.x = -0.1;
@@ -1321,7 +1321,7 @@ bool DockController::rotateOrigin()
         theta_error += 2 * PI_temp;
     if (theta_error > PI_temp)
         theta_error -= 2 * PI_temp;
-    if (fabs(theta_error) < 0.02)
+    if (fabs(theta_error) < 0.05)
     {
         //到达目标角度停止，切换方向
         geometry_msgs::Twist current_vel;
@@ -1419,7 +1419,7 @@ bool DockController::rotate2Station3()
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
     //ROS_ERROR("temp error %f %f %f ; %f %f %f",roll,pitch,yaw, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
-    if (fabs(theta - mstationPose3_[2]) < 0.02)
+    if (fabs(theta - mstationPose3_[2]) < 0.05)
     {
         //ROS_ERROR("temp error2 %f %f %f ; %f %f %f",x,y,yaw, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
         return true;
