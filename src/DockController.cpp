@@ -1388,7 +1388,7 @@ bool DockController::rotate2Station3()
     m1.getRPY(roll, pitch, yaw);
     theta = yaw;
     //ROS_ERROR("temp error %f %f %f ; %f %f %f",roll,pitch,yaw, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
-    if (fabs(theta - mstationPose3_[2]) < 0.02)
+    if (fabs(theta - mstationPose3_[2]) < 0.08)
     {
         //ROS_ERROR("temp error2 %f %f %f ; %f %f %f",x,y,yaw, mstationPose3_[0],mstationPose3_[1],mstationPose3_[2]);
         return true;
@@ -1459,7 +1459,7 @@ bool DockController::goToStation3()
 
     //ROS_ERROR("temp error3 %f %f %f ; %f %f",x,y,yaw, x2,y2);
     //增加过零检查和发散检查
-    if (fabs(x2) <= 0.03)
+    if (fabs(x2) <= 0.06)
         return true;
     if((x2*last_x2) < 0.0001) return true; //过最小值
     if(fabs(min_x2_ - fabs(x2)) > 0.2) return true; //发散
