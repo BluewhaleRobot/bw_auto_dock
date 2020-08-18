@@ -42,7 +42,7 @@ find_package(Boost COMPONENTS ${BOOST_LIBS} REQUIRED)
 find_package(Threads REQUIRED)
 
 # fix cannot link liborocos-kdl.so
-list(REMOVE_ITEM catkin_LIBRARIES "/opt/ros/kinetic/lib/liborocos-kdl.so")
+list(REMOVE_ITEM catkin_LIBRARIES "/opt/ros/kinetic/lib/liborocos-kdl.so" "/opt/ros/kinetic/lib/liborocos-kdl.so.1.3.0")
 
 
 set(SRCS src/main.cpp src/AsyncSerial.cpp src/DockController.cpp src/StatusPublisher.cpp src/getDockPosition.cpp)
