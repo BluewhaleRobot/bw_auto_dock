@@ -21,7 +21,7 @@
     <param name="kp_x_set" value="0.8"/>
     <param name="kd_x_set" value="0.2"/>
     <param name="ki_x_set" value="10.0"/>
-
+    
     <!-- 自动充电设备串口号-->
     <param name="port" value="/dev/ttyUSB004"/>
     <!-- 全局坐标系名字-->
@@ -32,9 +32,9 @@
     <param name="station_filename" value="/home/xiaoqiang/slamdb/dock_station.txt"/>
     <param name="grid_length" value="4.0"/>
     <!-- 碰撞触发距离，单位mm -->
-    <param name="crash_distance" value="65"/>
+    <param name="crash_distance" value="60"/>
     <!-- 是否使能前向避障，0关闭，1开启 -->
-    <param name="barDetectFlag" value="1"/>
+    <param name="barDetectFlag" value="0"/>
     <!-- 电池电压系数  -->
     <param name="power_scale" value="1.0"/>
     <!-- 充满时的电压阈值  -->

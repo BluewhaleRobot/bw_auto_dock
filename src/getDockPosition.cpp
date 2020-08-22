@@ -36,7 +36,7 @@ CaculateDockPosition::CaculateDockPosition(double grid_length, std::string frame
     mbw_status_ = bw_status;
     mdock_station_filename_ = dock_station_filename;
     mlocal_grid_ = new LocalGrid(0.1, grid_length / 2.0 / 0.1, frame_id);
-    station_distance_ = 0.8;
+    station_distance_ = 0.6;
 }
 bool CaculateDockPosition::getDockPosition(float (&station_pose1)[3], float (&station_pose2)[3])
 {
