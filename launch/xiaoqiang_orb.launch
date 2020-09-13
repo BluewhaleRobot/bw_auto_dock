@@ -6,9 +6,9 @@
     <!-- 自动充电对准过程中的最大直线速度-->
     <param name="max_linearspeed" value="0.20"/>
     <!-- 自动充电对准过程中的最大旋转速度-->
-    <param name="max_rotspeed" value="1.0"/>
+    <param name="max_rotspeed" value="0.5"/>
     <!-- 自动充电直线运动对准阶段中的pid参数-->
-    <param name="back_dock_kp" value="0.17"/>
+    <param name="back_dock_kp" value="0.10"/>
     <param name="back_dock_ki" value="1.0"/>
     <param name="back_dock_kd" value="0.04"/>
 
@@ -36,7 +36,7 @@
     <!-- 是否使能前向避障，0关闭，1开启 -->
     <param name="barDetectFlag" value="1"/>
     <!-- 电池电压系数  -->
-    <param name="power_scale" value="1.0038"/>
+    <param name="power_scale" value="1.012"/>
     <!-- 充满时的电压阈值  -->
     <param name="power_threshold" value="53.5"/>
   </node>
