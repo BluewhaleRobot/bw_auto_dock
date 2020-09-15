@@ -694,6 +694,7 @@ void DockController::dealing_status(bool action_call_flag)
                     std_msgs::Bool pub_data;
                     pub_data.data = false;
                     mlimitSpeedPub_.publish(pub_data);
+                    ros::Duration(0.3).sleep();
                 }
                 break;
             case CHARGE_STATUS_TEMP::docking1:
@@ -1321,7 +1322,7 @@ bool DockController::rotateOrigin()
         theta_error += 2 * PI_temp;
     if (theta_error > PI_temp)
         theta_error -= 2 * PI_temp;
-    if (fabs(theta_error) < 0.05)
+    if (fabs(theta_error) < 0.03)
     {
         //到达目标角度停止，切换方向
         geometry_msgs::Twist current_vel;

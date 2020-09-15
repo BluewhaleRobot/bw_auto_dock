@@ -79,6 +79,7 @@ void CaculateDockPosition::run()
     ros::Rate r(10);
     int num = 0;
     bool dock_postion_update_ = false;
+    int num_power = 0;
     while (ros::ok())
     {
         num++;
@@ -110,14 +111,21 @@ void CaculateDockPosition::run()
             mlocal_grid_->update_sensor(sensor_value, ir_pose);
             if (mbw_status_->sensor_status.power > 9.0)
             {
-                if(mbw_status_->get_charge_status() == CHARGE_STATUS::freed)
+                num_power += 1;
+                if(mbw_status_->get_charge_status() == CHARGE_STATUS::freed && num_power >20)
                 {
+                  num_power = 0;
                   //触发充电桩
                   if (mlocal_grid_->set_dock_position(ir_pose))
                       dock_postion_update_ = true;
                   // ROS_INFO("dock_realposition_set %d %f %f %f",num,ir_pose[0],ir_pose[1],ir_pose[2]);
                 }
             }
+            else
+            {
+                num_power = 0;
+            }
+            
         }
 
         ros::spinOnce();
