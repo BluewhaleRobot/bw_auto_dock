@@ -353,9 +353,9 @@ void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus&
 
     free_diff = ros::WallTime::now() - free_time;
 
-    if(free_diff.toSec()>60 && free_diff.toSec()<60+5)
+    if(free_diff.toSec()>60 && free_diff.toSec()<60+2)
     {
-      if(sensor_status.distance1 <= 250 )
+      if(sensor_status.distance1 <= 150 )
       {
         need_stop = true;
         stop_num = 0;

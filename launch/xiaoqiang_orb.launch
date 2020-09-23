@@ -36,7 +36,7 @@
     <!-- 是否使能前向避障，0关闭，1开启 -->
     <param name="barDetectFlag" value="1"/>
     <!-- 电池电压系数  -->
-    <param name="power_scale" value="1.012"/>
+    <param name="power_scale" value="1.0192"/>
     <!-- 充满时的电压阈值  -->
     <param name="power_threshold" value="53.5"/>
   </node>
