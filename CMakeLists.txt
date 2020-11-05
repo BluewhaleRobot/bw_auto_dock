@@ -38,7 +38,8 @@ include_directories(
 )
 
 # fix cannot link liborocos-kdl.so
-list(REMOVE_ITEM catkin_LIBRARIES "/opt/ros/kinetic/lib/liborocos-kdl.so")
+list(REMOVE_DUPLICATES catkin_LIBRARIES)
+list(REMOVE_ITEM catkin_LIBRARIES "/opt/ros/kinetic/lib/liborocos-kdl.so" "/opt/ros/kinetic/lib/liborocos-kdl.so.1.3.0")
 
 set(BOOST_LIBS thread date_time system)
 find_package(Boost COMPONENTS ${BOOST_LIBS} REQUIRED)
@@ -48,6 +49,8 @@ set(SRCS src/main.cpp src/AsyncSerial.cpp src/DockController.cpp src/StatusPubli
 add_executable(${PROJECT_NAME} ${SRCS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME} PREFIX "")
+# fix build deps
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 install(
   TARGETS ${PROJECT_NAME} ${PROJECT_NAME}
