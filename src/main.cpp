@@ -35,8 +35,15 @@
 #include "bw_auto_dock/DockController.h"
 #include "bw_auto_dock/StatusPublisher.h"
 #include "bw_auto_dock/getDockPosition.h"
+#include <std_msgs/String.h>
 
 using namespace std;
+
+inline bool exists(const std::string &name)
+{
+    struct stat buffer;
+    return (stat(name.c_str(), &buffer) == 0);
+}
 
 int main(int argc, char** argv)
 {
@@ -85,7 +92,24 @@ int main(int argc, char** argv)
     double power_threshold;
     ros::param::param<double>("~power_threshold", power_threshold, 41.0);
 
+    double kp_theta_set, kd_theta_set, ki_theta_set;
+    ros::param::param<double>("~kp_theta_set", kp_theta_set, 0.4);
+    ros::param::param<double>("~kd_theta_set", kd_theta_set, 0.8);
+    ros::param::param<double>("~ki_theta_set", ki_theta_set, 1.0);
+
+    double kp_x_set, kd_x_set, ki_x_set;
+    ros::param::param<double>("~kp_x_set", kp_x_set, 0.4);
+    ros::param::param<double>("~kd_x_set", kd_x_set, 0.8);
+    ros::param::param<double>("~ki_x_set", ki_x_set, 10.0);
+
+    double max_x_speed, max_theta_speed;
+    ros::param::param<double>("~max_x_speed", max_x_speed, 0.3);
+    ros::param::param<double>("~max_theta_speed", max_theta_speed, 0.3);
+
     bw_auto_dock::StatusPublisher bw_status(crash_distance,power_scale);
+
+    ros::NodeHandle mNH;
+    ros::Publisher audio_pub = mNH.advertise<std_msgs::String>("/xiaoqiang_tts/text", 1, true);
     try
     {
         CallbackAsyncSerial serial(port, baud);
@@ -94,7 +118,7 @@ int main(int argc, char** argv)
 
         bw_auto_dock::DockController bw_controler(back_distance, max_linearspeed, max_rotspeed,crash_distance,barDetectFlag,global_frame_id, &bw_status, &serial);
         boost::thread bw_controlerThread(&bw_auto_dock::DockController::run, &bw_controler);
-        bw_controler.setDockPid(kp, ki, kd);
+        bw_controler.setDockPid(kp, ki, kd, kp_theta_set, kd_theta_set, ki_theta_set,kp_x_set, kd_x_set, ki_x_set, max_theta_speed, max_x_speed);
         bw_controler.setPowerParam(power_threshold);
         //计算充电桩位置
         bw_auto_dock::CaculateDockPosition caculate_DockPosition(grid_length, global_frame_id, station_filename,
@@ -115,7 +139,7 @@ int main(int argc, char** argv)
                 break;
             }
             bw_status.Refresh();  //定时发布状态
-            bw_controler.dealing_status();
+            bw_controler.dealing_status(false);
             r.sleep();
         }
 
@@ -124,7 +148,16 @@ int main(int argc, char** argv)
     }
     catch (std::exception& e)
     {
-        ROS_ERROR_STREAM("Exception: " << e.what());
+      ROS_ERROR_STREAM("Open " << port << " failed.");
+      ROS_ERROR_STREAM("Exception: " << e.what());
+      // 检查串口设备是否存在
+      if (!exists(port))
+      {
+          // 发送语音提示消息
+          std_msgs::String audio_msg;
+          audio_msg.data = "未发现充电串口设备，请检查充电串口连接";
+          audio_pub.publish(audio_msg);
+      }
     }
 
     ros::shutdown();

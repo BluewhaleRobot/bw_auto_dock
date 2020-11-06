@@ -124,9 +124,6 @@ void StatusPublisher::Update(const char data[], unsigned int len)
                             memcpy(&receive_byte[j], &cmd_string_buf[5 * j], 4);
                         }
                         mbUpdated = true;
-                    }
-                    if (mbUpdated)
-                    {
                         for (j = 0; j < 9; j++)
                         {
                             if (cmd_string_buf[5 * j + 4] != 32)
@@ -139,6 +136,19 @@ void StatusPublisher::Update(const char data[], unsigned int len)
                                 break;
                             }
                         }
+                    }
+                    if (new_packed_ok_len == 55)
+                    {
+                      for(j=0;j<11;j++)
+                      {
+                          //要校验和
+                          unsigned char sum = cmd_string_buf[5*j] + cmd_string_buf[5*j+1] + cmd_string_buf[5*j+2] + cmd_string_buf[5*j+3];
+                          if(sum == cmd_string_buf[5*j+4])
+                          {
+                            memcpy(&receive_byte[j],&cmd_string_buf[5*j],4);
+                            mbUpdated = true;
+                          }
+                      }
                     }
                     // ii++;
                     // std::cout << ii << std::endl;
@@ -412,4 +422,27 @@ CHARGE_STATUS StatusPublisher::get_charge_status()
     boost::mutex::scoped_lock lock(mMutex_charge);
     return mcharge_status_;
 }
+
+float StatusPublisher::get_battery_power()
+{
+    static float last_power =0;
+    boost::mutex::scoped_lock lock(mMutex_sensor);
+    if(last_power<9 || (std::fabs(last_power-sensor_status.battery)<1.5 && sensor_status.battery<60 && sensor_status.battery>0))
+    {
+      last_power = sensor_status.battery;
+    }
+    else
+    {
+      return last_power;
+    }
+
+    return sensor_status.battery;
+}
+
+UPLOAD_STATUS StatusPublisher::get_sensor_status()
+{
+    boost::mutex::scoped_lock lock(mMutex_sensor);
+    return sensor_status;
+}
+
 }  // namespace bw_auto_dock

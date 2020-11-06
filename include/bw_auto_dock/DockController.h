@@ -36,7 +36,11 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Transform.h>
-
+#include "galileo_serial_server/GalileoStatus.h"
+#include <actionlib/server/simple_action_server.h>
+#include <galileo_msg/AutoChargeAction.h>
+#include "bw_auto_dock/Charge.h"
+#include "bw_auto_dock/StopCharge.h"
 
 namespace bw_auto_dock
 {
@@ -66,17 +70,15 @@ class DockController
     DockController(double back_distance, double max_linearspeed, double max_rotspeed,double crash_distance,int barDetectFlag,std::string global_frame, StatusPublisher* bw_status,
                   CallbackAsyncSerial* cmd_serial);
     void run();
-    void dealing_status();
+    void dealing_status(bool action_call_flag);
     void updateOdom(const nav_msgs::Odometry::ConstPtr& msg);
     void updateChargeFlag(const std_msgs::Bool& currentFlag);
     void caculatePose3();
     bool backToPose3();
     bool backToDock();
     float computeDockError();
-    void setDockPid(double kp, double ki, double kd);
+    void setDockPid(double kp, double ki, double kd, double kp_theta_set, double kd_theta_set, double ki_theta_set, double kp_x_set, double kd_x_set, double ki_x_set, double max_theta_speed, double max_x_speed);
     bool rotateOrigin();
-    void caculatePose4();
-    bool goToPose4();
     geometry_msgs::Pose getRobotPose();
     bool getRobotPose(float (&robot_pose)[3]);
     bool getIRPose(float (&robot_pose)[3]);
@@ -85,6 +87,11 @@ class DockController
     bool rotate2Station3();
     void caculateStation3();
     void setPowerParam(double power_threshold);
+    void UpdateNavStatus(const galileo_serial_server::GalileoStatus& current_receive_status);
+    void resetState();
+    void executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal);
+    bool ChargeService(bw_auto_dock::Charge::Request &req, bw_auto_dock::Charge::Response &resp);
+    bool StopChargeService(bw_auto_dock::StopCharge::Request &req, bw_auto_dock::StopCharge::Response &resp);
   private:
     CallbackAsyncSerial* mcmd_serial_;
     CaculateDockPosition* mdock_position_caculate_;
@@ -109,6 +116,7 @@ class DockController
     ros::Publisher mCmdvelPub_;
     ros::Publisher mbarDetectPub_;
     ros::Publisher mlimitSpeedPub_;
+    ros::Publisher action_goal_pub_;
 
     boost::mutex mMutex_charge;
     boost::mutex mMutex_pose;
@@ -126,15 +134,27 @@ class DockController
     float kp_;
     float ki_;
     float kd_;
+    float kp_theta_set_;
+    float kd_theta_set_;
+    float ki_theta_set_;
+    float kp_x_set_;
+    float kd_x_set_;
+    float ki_x_set_;
+    float max_theta_speed_;
+    float max_x_speed_;
+
+    float error_theta_last_;
+    float error_theta_sum_;
+    float error_x_last_;
+    float error_x_sum_;
 
     float current_average_;
     bool mPose_flag_;
-    float mstationPose1_[2];
-    float mstationPose2_[2];
+    float mstationPose1_[3];
+    float mstationPose2_[3];
     float* mstationPose3_;
 
     float min_x2_;
-    float min_x2_4_;
     bool barDetectFlag_;
 
     tf2_ros::Buffer tf2_buffer_;
@@ -145,6 +165,16 @@ class DockController
     std::string global_frame_;
     bool mTf_flag_;
     double power_threshold_;
+    galileo_serial_server::GalileoStatus galileoStatus_;
+
+    ros::NodeHandle nh_;
+    actionlib::SimpleActionServer<galileo_msg::AutoChargeAction> as_; // NodeHandle instance must be created before this line. Otherwise strange error occurs.
+    galileo_msg::AutoChargeFeedback feedback_;
+    galileo_msg::AutoChargeResult result_;
+    galileo_msg::AutoChargeGoal current_goal_;
+
+    ros::ServiceServer charge_srv_;
+    ros::ServiceServer stop_charge_srv_;
 };
 
 }  // namespace bw_auto_dock
