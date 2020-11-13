@@ -14,7 +14,7 @@
 
     <!-- 自动充电驶入预定点阶段中的pid参数-->
     <param name="max_x_speed" value="0.30"/>
-    <param name="max_theta_speed" value="0.30"/>
+    <param name="max_theta_speed" value="1"/>
     <param name="kp_theta_set" value="0.4"/>
     <param name="kd_theta_set" value="0.8"/>
     <param name="ki_theta_set" value="1.0"/>
