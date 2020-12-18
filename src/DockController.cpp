@@ -897,7 +897,7 @@ void DockController::dealing_status(bool action_call_flag)
                             trig_num ++;
                             if(trig_num>50)
                             {
-                                //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
+                                ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                                 //进入充满状态
                                 //下发充满显示状态使能命令，绿灯
                                 // char cmd_str[6] = {
