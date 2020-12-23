@@ -161,16 +161,16 @@ void CaculateDockPosition::saveDockPositon()
 
 void CaculateDockPosition::updateMapsaveFlag(const std_msgs::Bool& currentFlag)
 {
-  if (currentFlag.data)
-  {
-      float ir_pose[3];
-      DOCK_POSITION sensor_value = mbw_status_->get_dock_position();
-      if (mdock_controler_->getIRPose(ir_pose) && sensor_value != DOCK_POSITION::not_found)
-      {
-          mlocal_grid_->set_dock_position(ir_pose);
-          this->saveDockPositon();
-      }
+    if (currentFlag.data)
+    {
+        float ir_pose[3];
+        DOCK_POSITION sensor_value = mbw_status_->get_dock_position();
+        if (mdock_controler_->getIRPose(ir_pose) && sensor_value != DOCK_POSITION::not_found)
+        {
+            mlocal_grid_->set_dock_position(ir_pose);
+            this->saveDockPositon();
+        }
 
-  }
+    }
 }
 }  // namespace bw_auto_dock
