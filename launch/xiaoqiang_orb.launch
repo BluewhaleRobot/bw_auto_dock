@@ -32,7 +32,7 @@
     <param name="station_filename" value="/home/xiaoqiang/slamdb/dock_station.txt"/>
     <param name="grid_length" value="4.0"/>
     <!-- 碰撞触发距离，单位mm -->
-    <param name="crash_distance" value="90"/>
+    <param name="crash_distance" value="120"/>
     <!-- 是否使能前向避障，0关闭，1开启 -->
     <param name="barDetectFlag" value="1"/>
     <!-- 电池电压系数  -->

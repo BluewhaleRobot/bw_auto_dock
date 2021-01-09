@@ -850,7 +850,7 @@ void DockController::dealing_status(bool action_call_flag)
                 mCmdvelPub_.publish(current_vel);
                 break;
             case CHARGE_STATUS_TEMP::charging1:
-                if (sensor_status.power < 9.0 && current_goal_.method == 0)
+                if (sensor_status.power < (power_threshold_-5.0) && current_goal_.method == 0)
                 {
                     //没有侦测到电压，进入temp1
                     usefull_num_++;
@@ -880,7 +880,7 @@ void DockController::dealing_status(bool action_call_flag)
                     unusefull_num_++;
                     usefull_num_ = 0;
                     static int trig_num =0 ;
-                    if (unusefull_num_ > 20)
+                    if (unusefull_num_ > 40)
                     {
                         //下发充电开关使能命令,进入充电状态,黄灯
                         if(unusefull_num_>1800) unusefull_num_ = 18001;
@@ -892,7 +892,7 @@ void DockController::dealing_status(bool action_call_flag)
                         //根据充电电流，判断是否已经充满
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
-                        if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
+                        if ((current_average_) < 0.2 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             trig_num ++;
                             if(trig_num>50)
@@ -1115,7 +1115,11 @@ bool DockController::backToDock()
 
     //如果侦测到已进入死角，停止
     if (sensor_status.distance1 <= this->crash_distance_ && sensor_status.distance1>0.1)
-        return true;
+    {
+      ROS_ERROR("crash 1 %f %f",sensor_status.distance1,this->crash_distance_);
+      return true;
+    }
+
 
     if ((sensor_status.left_sensor2 == 0) && (sensor_status.right_sensor2 == 0))
     {
