@@ -850,7 +850,7 @@ void DockController::dealing_status(bool action_call_flag)
                 mCmdvelPub_.publish(current_vel);
                 break;
             case CHARGE_STATUS_TEMP::charging1:
-                if (sensor_status.power < (power_threshold_-5.0) && current_goal_.method == 0)
+                if ( ( (unusefull_num_ < 40 && sensor_status.power < (power_threshold_-5.0))||(unusefull_num_ >= 40 && sensor_status.power < 9.0)) && current_goal_.method == 0)
                 {
                     //没有侦测到电压，进入temp1
                     usefull_num_++;
@@ -892,6 +892,31 @@ void DockController::dealing_status(bool action_call_flag)
                         //根据充电电流，判断是否已经充满
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
+                        if((current_average_) < 0.2 && sensor_status.distance1 < (crash_distance_+20) && bw_status_->get_battery_power() < (power_threshold_ - 1))
+                        {
+                          trig_num ++;
+                          if(trig_num>50)
+                          {
+                            //充电电流太小，进入temp1
+                            char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+                            if (NULL != mcmd_serial_)
+                            {
+                                mcmd_serial_->write(cmd_str, 6);
+                            }
+                            mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
+                            usefull_num_ = 0;
+                            unusefull_num_ = 0;
+                            //停止移动
+                            current_vel.linear.x = 0;
+                            current_vel.linear.y = 0;
+                            current_vel.linear.z = 0;
+                            current_vel.angular.x = 0;
+                            current_vel.angular.y = 0;
+                            current_vel.angular.z = 0;
+                            mCmdvelPub_.publish(current_vel);
+                          }
+                        }
+
                         if ((current_average_) < 0.2 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             trig_num ++;
@@ -937,6 +962,22 @@ void DockController::dealing_status(bool action_call_flag)
                 }
                 break;
             case CHARGE_STATUS_TEMP::charged1:
+                if(bw_status_->get_battery_power() < (power_threshold_ - 3) && sensor_status.current < 0.2)
+                {
+                  //进入free显示状态，下发充电开关闭命令，关闭灯
+                  char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+                  if (NULL != mcmd_serial_)
+                  {
+                      mcmd_serial_->write(cmd_str, 6);
+                  }
+                  mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
+                  mcharge_status_ = CHARGE_STATUS::freed;
+                  bw_status_->set_charge_status(mcharge_status_);
+                  usefull_num_ = 0;
+                  unusefull_num_ = 0;
+                  mcurrentChargeFlag_ = false;
+                  break;
+                }
                 if (usefull_num_ > 18000 || bw_status_->get_battery_power() > power_threshold_)
                 {
                     // 10分钟后转成freed
