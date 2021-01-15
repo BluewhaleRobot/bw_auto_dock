@@ -141,7 +141,7 @@ void DockController::executeCB(const galileo_msg::AutoChargeGoalConstPtr &goal)
 
     {
         boost::mutex::scoped_lock lock(mMutex_pose);
-        if(!mPose_flag_)
+        if(!mPose_flag_ && current_goal_.method != 1)
         {
             ROS_DEBUG("oups2");
             as_.setAborted(galileo_msg::AutoChargeResult(), "Aborting on the goal because pose not ready");
@@ -463,13 +463,66 @@ void DockController::dealing_status(bool action_call_flag)
     boost::mutex::scoped_lock lock1(mMutex_charge);
     boost::mutex::scoped_lock lock2(mMutex_pose);
 
+    static float last_power = 0;
+    static ros::WallTime last_powertime = ros::WallTime::now();
     if(as_.isActive() && !action_call_flag){
       return;
     }
 
     UPLOAD_STATUS sensor_status = bw_status_->get_sensor_status();
+
+    if(!action_call_flag)
+    {
+      //侦测到电压2秒后则直接进入充电
+      if( !mcurrentChargeFlag_ && mcharge_status_ == CHARGE_STATUS::freed )
+      {
+        if(last_power < 9.0)
+        {
+          last_powertime = ros::WallTime::now();
+        }
+        last_power = sensor_status.power;
+        ros::WallDuration t_diff = ros::WallTime::now() - last_powertime;
+        float dt1 = t_diff.toSec();
+
+        if (dt1 > 2.0 && sensor_status.power > 9.0 && sensor_status.distance1 < (this->crash_distance_+ 100))
+        {
+          galileo_msg::AutoChargeActionGoal action_goal;
+          action_goal.header.stamp = ros::Time::now();
+          action_goal.goal.use_local = true;
+          action_goal.goal.method = 1;
+          action_goal.goal.x = 0;
+          action_goal.goal.y = 0;
+          action_goal.goal.angle = 0;
+          action_goal_pub_.publish(action_goal);
+          return;
+        }
+      }
+
+      //退出充电
+      if(mcurrentChargeFlag_ && (mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged))
+      {
+        if(sensor_status.distance1 > (this->crash_distance_+ 150))
+        {
+          //进入free显示状态，下发充电开关闭命令，关闭灯
+          char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+          if (NULL != mcmd_serial_)
+          {
+              mcmd_serial_->write(cmd_str, 6);
+          }
+          mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
+          mcharge_status_ = CHARGE_STATUS::freed;
+          bw_status_->set_charge_status(mcharge_status_);
+          usefull_num_ = 0;
+          unusefull_num_ = 0;
+          mcurrentChargeFlag_ = false;
+          last_power = 0;
+          return;
+        }
+      }
+    }
+
     geometry_msgs::Twist current_vel;
-    if (!mPose_flag_)
+    if (!mPose_flag_ && current_goal_.method != 1)
     {
       if (mcharge_status_ != CHARGE_STATUS::freed && mcurrentChargeFlag_)
       {
@@ -483,8 +536,9 @@ void DockController::dealing_status(bool action_call_flag)
         ROS_ERROR("map to base_link not ready!");
         mCmdvelPub_.publish(current_vel);
       }
-      return;  //历程计没有开启
+      return;  //里程计没有开启
     }
+
     if (mcurrentChargeFlag_)
     {
         if (mcharge_status_ == CHARGE_STATUS::freed)
@@ -796,7 +850,7 @@ void DockController::dealing_status(bool action_call_flag)
                 mCmdvelPub_.publish(current_vel);
                 break;
             case CHARGE_STATUS_TEMP::charging1:
-                if (sensor_status.power < 9.0 && current_goal_.method == 0)
+                if ( ( (unusefull_num_ < 40 && sensor_status.power < (power_threshold_-5.0))||(unusefull_num_ >= 40 && sensor_status.power < 9.0)) && current_goal_.method == 0)
                 {
                     //没有侦测到电压，进入temp1
                     usefull_num_++;
@@ -826,7 +880,7 @@ void DockController::dealing_status(bool action_call_flag)
                     unusefull_num_++;
                     usefull_num_ = 0;
                     static int trig_num =0 ;
-                    if (unusefull_num_ > 20)
+                    if (unusefull_num_ > 40)
                     {
                         //下发充电开关使能命令,进入充电状态,黄灯
                         if(unusefull_num_>1800) unusefull_num_ = 18001;
@@ -838,12 +892,37 @@ void DockController::dealing_status(bool action_call_flag)
                         //根据充电电流，判断是否已经充满
                         if(sensor_status.current>-0.1 && sensor_status.current<10.0) current_average_ = current_average_ * 0.99 + sensor_status.current * 0.01;
                         //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
-                        if ((current_average_) < 0.1 || bw_status_->get_battery_power() > power_threshold_)
+                        if((current_average_) < 0.2 && sensor_status.distance1 < (crash_distance_+20) && bw_status_->get_battery_power() < (power_threshold_ - 1))
+                        {
+                          trig_num ++;
+                          if(trig_num>50)
+                          {
+                            //充电电流太小，进入temp1
+                            char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+                            if (NULL != mcmd_serial_)
+                            {
+                                mcmd_serial_->write(cmd_str, 6);
+                            }
+                            mcharge_status_temp_ = CHARGE_STATUS_TEMP::temp1;
+                            usefull_num_ = 0;
+                            unusefull_num_ = 0;
+                            //停止移动
+                            current_vel.linear.x = 0;
+                            current_vel.linear.y = 0;
+                            current_vel.linear.z = 0;
+                            current_vel.angular.x = 0;
+                            current_vel.angular.y = 0;
+                            current_vel.angular.z = 0;
+                            mCmdvelPub_.publish(current_vel);
+                          }
+                        }
+
+                        if ((current_average_) < 0.2 || bw_status_->get_battery_power() > power_threshold_)
                         {
                             trig_num ++;
                             if(trig_num>50)
                             {
-                                //ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
+                                ROS_ERROR("charging %f %f %f",current_average_,bw_status_->get_battery_power(),power_threshold_);
                                 //进入充满状态
                                 //下发充满显示状态使能命令，绿灯
                                 // char cmd_str[6] = {
@@ -883,6 +962,22 @@ void DockController::dealing_status(bool action_call_flag)
                 }
                 break;
             case CHARGE_STATUS_TEMP::charged1:
+                if(bw_status_->get_battery_power() < (power_threshold_ - 3) && sensor_status.current < 0.2)
+                {
+                  //进入free显示状态，下发充电开关闭命令，关闭灯
+                  char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
+                  if (NULL != mcmd_serial_)
+                  {
+                      mcmd_serial_->write(cmd_str, 6);
+                  }
+                  mcharge_status_temp_ = CHARGE_STATUS_TEMP::freed;
+                  mcharge_status_ = CHARGE_STATUS::freed;
+                  bw_status_->set_charge_status(mcharge_status_);
+                  usefull_num_ = 0;
+                  unusefull_num_ = 0;
+                  mcurrentChargeFlag_ = false;
+                  break;
+                }
                 if (usefull_num_ > 18000 || bw_status_->get_battery_power() > power_threshold_)
                 {
                     // 10分钟后转成freed
@@ -1061,7 +1156,11 @@ bool DockController::backToDock()
 
     //如果侦测到已进入死角，停止
     if (sensor_status.distance1 <= this->crash_distance_ && sensor_status.distance1>0.1)
-        return true;
+    {
+      ROS_ERROR("crash 1 %f %f",sensor_status.distance1,this->crash_distance_);
+      return true;
+    }
+
 
     if ((sensor_status.left_sensor2 == 0) && (sensor_status.right_sensor2 == 0))
     {

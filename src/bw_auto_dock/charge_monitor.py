@@ -27,10 +27,11 @@ CURRENT_STATUS = None
 LAST_NAV_TIME = int(time.time() * 1000)
 
 POWER_RECORDS = []
+CHARGE_TASK_FLAG = False
 
 def update_status(status):
     global AUDIO_PUB, GALILEO_PUB, CHARGE_GOAL, LAST_CHARGE_CMD_TIME, POWER_LOW, CURRENT_STATUS, POWER_RECORDS, CHARGING_TIME, CHARGING_OFF_TIME, CHARGING_LAST_STATUS
-    global LAST_NAV_TIME
+    global LAST_NAV_TIME, CHARGE_TASK_FLAG
     now = int(time.time() * 1000)
     CURRENT_STATUS = status
     if status.chargeStatus == 1 and CHARGING_LAST_STATUS != 1 :
@@ -88,17 +89,21 @@ def update_status(status):
 
     if sum(POWER_RECORDS) / len(POWER_RECORDS) < POWER_LOW and sum(POWER_RECORDS) / len(POWER_RECORDS) > POWER_LOW / 2:
         LAST_CHARGE_CMD_TIME = now
+        if CHARGE_TASK_FLAG:
+            return
+        CHARGE_TASK_FLAG = True
         _start_new_thread(charge_task, ())
 
 
 def charge_task():
     time.sleep(10)
     AUDIO_PUB.publish("电量低，开始自动返回充电")
-    global GALILEO_PUB, CHARGE_GOAL, CURRENT_STATUS
+    global GALILEO_PUB, CHARGE_GOAL, CURRENT_STATUS, CHARGE_TASK_FLAG
     try:
         r = requests.get('http://127.0.0.1:3546/api/v1/task/stop', timeout=5)
     except Exception as e:
         print(e)
+        CHARGE_TASK_FLAG = False
         return
     # 停止巡检任务
     galileo_cmds = GalileoNativeCmds()
@@ -122,11 +127,18 @@ def charge_task():
     galileo_cmds.length = len(galileo_cmds.data)
     GALILEO_PUB.publish(galileo_cmds)
     charge_goal_index = int(rospy.get_param("/galileo/goal_num", 0)) - 1
-    while previous_goal_num > charge_goal_index:
+    timecount = 0
+    timeout = 10
+    while previous_goal_num > charge_goal_index and timecount < timeout:
         # 等待插入点完成
         print("等待插入点完成")
         charge_goal_index = int(rospy.get_param("/galileo/goal_num", 0)) - 1
         time.sleep(0.1)
+        timecount += 0.1
+    if timecount >= timeout:
+        print("插入点失败")
+        CHARGE_TASK_FLAG = False
+        return
     # start the goal
     galileo_cmds.data = 'g' + chr(charge_goal_index)
     galileo_cmds.length = len(galileo_cmds.data)
@@ -139,6 +151,7 @@ def charge_task():
     while CURRENT_STATUS.targetNumID == charge_goal_index and CURRENT_STATUS.navStatus == 1 and not (CURRENT_STATUS.targetStatus == 0 or CURRENT_STATUS.targetStatus == -1):
         time.sleep(1)
     if CURRENT_STATUS.navStatus != 1:
+        CHARGE_TASK_FLAG = False
         return
     if CURRENT_STATUS.targetStatus == 0:
         # reset goal
@@ -152,6 +165,7 @@ def charge_task():
         galileo_cmds.length = len(galileo_cmds.data)
         galileo_cmds.header.stamp = rospy.Time.now()
         GALILEO_PUB.publish(galileo_cmds)
+    CHARGE_TASK_FLAG = False
 
 
 def load_charge_goal():

@@ -108,16 +108,16 @@ void CaculateDockPosition::run()
             }
             mlocal_grid_->update_clear(ir_pose);
             mlocal_grid_->update_sensor(sensor_value, ir_pose);
-            if (mbw_status_->sensor_status.power > 9.0)
-            {
-                if(mbw_status_->get_charge_status() == CHARGE_STATUS::freed)
-                {
-                  //触发充电桩
-                  if (mlocal_grid_->set_dock_position(ir_pose))
-                      dock_postion_update_ = true;
-                  // ROS_INFO("dock_realposition_set %d %f %f %f",num,ir_pose[0],ir_pose[1],ir_pose[2]);
-                }
-            }
+            // if (mbw_status_->sensor_status.power > 9.0)
+            // {
+            //     if(mbw_status_->get_charge_status() == CHARGE_STATUS::freed)
+            //     {
+            //       //触发充电桩
+            //       if (mlocal_grid_->set_dock_position(ir_pose))
+            //           dock_postion_update_ = true;
+            //       // ROS_INFO("dock_realposition_set %d %f %f %f",num,ir_pose[0],ir_pose[1],ir_pose[2]);
+            //     }
+            // }
         }
 
         ros::spinOnce();
@@ -164,11 +164,12 @@ void CaculateDockPosition::updateMapsaveFlag(const std_msgs::Bool& currentFlag)
     if (currentFlag.data)
     {
         float ir_pose[3];
-        if (mdock_controler_->getIRPose(ir_pose))
+        DOCK_POSITION sensor_value = mbw_status_->get_dock_position();
+        if (mdock_controler_->getIRPose(ir_pose) && sensor_value != DOCK_POSITION::not_found)
         {
             mlocal_grid_->set_dock_position(ir_pose);
+            this->saveDockPositon();
         }
-        this->saveDockPositon();
     }
 }
 }  // namespace bw_auto_dock
