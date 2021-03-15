@@ -10,14 +10,14 @@
 
   <node pkg="bw_auto_dock" type="bw_auto_dock" name="dock_driver" respawn="true" respawn_delay="10">
     <!-- 充电部位到base_link位置的距离，base_link一般位于两个主动轮轴中间-->
-    <param name="back_distance" value="$(arg back_distance)" type="float" />
-    <param name="back_distance2" value="$(arg back_distance2)" type="float" />
+    <param name="back_distance" value="$(arg back_distance)" />
+    <param name="back_distance2" value="$(arg back_distance2)" />
     <!-- 自动充电对准过程中的最大直线速度-->
     <param name="max_linearspeed" value="0.20"/>
     <!-- 自动充电对准过程中的最大旋转速度-->
     <param name="max_rotspeed" value="1.0"/>
     <!-- 自动充电直线运动对准阶段中的pid参数-->
-    <param name="back_dock_kp" value="$(arg back_dock_kp)" type="float" />
+    <param name="back_dock_kp" value="$(arg back_dock_kp)" />
     <param name="back_dock_ki" value="1.0"/>
     <param name="back_dock_kd" value="0.04"/>
 
@@ -45,9 +45,9 @@
     <!-- 是否使能前向避障，0关闭，1开启 -->
     <param name="barDetectFlag" value="1"/>
     <!-- 电池电压系数  -->
-    <param name="power_scale" value="$(arg power_scale)" type="float"/>
+    <param name="power_scale" value="$(arg power_scale)" />
     <!-- 充满时的电压阈值  -->
-    <param name="power_threshold" value="$(arg power_threshold)" type="float" />
+    <param name="power_threshold" value="$(arg power_threshold)" />
   </node>
   <!-- <node pkg="bw_auto_dock" type="charge_monitor.py" name="charge_monitor" respawn="true" respawn_delay="10" output="screen"> -->
     <!-- 保存有充电桩位置的文件名,需要是绝对路径，xiaoqiang改成自己的用户名 -->
