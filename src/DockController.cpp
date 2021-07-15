@@ -355,7 +355,7 @@ void DockController::UpdateNavStatus(const galileo_serial_server::GalileoStatus&
 
     if(free_diff.toSec()>60 && free_diff.toSec()<60+5)
     {
-      if(sensor_status.distance1 <= 250 )
+      if(sensor_status.distance1 <= 150 )
       {
         need_stop = true;
         stop_num = 0;
@@ -484,7 +484,7 @@ void DockController::dealing_status(bool action_call_flag)
         ros::WallDuration t_diff = ros::WallTime::now() - last_powertime;
         float dt1 = t_diff.toSec();
 
-        if (dt1 > 2.0 && sensor_status.power > 9.0 && sensor_status.distance1 < (this->crash_distance_+ 100))
+        if (dt1 > 2.0 && sensor_status.power > 9.0 && sensor_status.distance1 < (this->crash_distance_+ 80))
         {
           galileo_msg::AutoChargeActionGoal action_goal;
           action_goal.header.stamp = ros::Time::now();
@@ -501,7 +501,7 @@ void DockController::dealing_status(bool action_call_flag)
       //退出充电
       if(mcurrentChargeFlag_ && (mcharge_status_ == CHARGE_STATUS::charging || mcharge_status_ == CHARGE_STATUS::charged))
       {
-        if(sensor_status.distance1 > (this->crash_distance_+ 150))
+        if(sensor_status.distance1 > (this->crash_distance_+ 110))
         {
           //进入free显示状态，下发充电开关闭命令，关闭灯
           char cmd_str[6] = { (char)0xcd, (char)0xeb, (char)0xd7, (char)0x02, (char)0x4B, (char)0x00 };
